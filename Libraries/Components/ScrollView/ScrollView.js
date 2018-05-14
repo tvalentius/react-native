@@ -25,6 +25,7 @@ const StyleSheetPropType = require('StyleSheetPropType');
 const View = require('View');
 const ViewPropTypes = require('ViewPropTypes');
 const ViewStylePropTypes = require('ViewStylePropTypes');
+const InternalScrollViewType = require('InternalScrollViewType');
 
 const createReactClass = require('create-react-class');
 const dismissKeyboard = require('dismissKeyboard');
@@ -38,7 +39,104 @@ const requireNativeComponent = require('requireNativeComponent');
 const warning = require('fbjs/lib/warning');
 const resolveAssetSource = require('resolveAssetSource');
 
+import type {PressEvent} from 'CoreEventTypes';
+import type {EdgeInsetsProp} from 'EdgeInsetsPropType';
 import type {NativeMethodsMixinType} from 'ReactNativeTypes';
+import type {ViewStyleProp} from 'StyleSheet';
+import type {ViewProps} from 'ViewPropTypes';
+import type {PointProp} from 'PointPropType';
+
+import type {ColorValue} from 'StyleSheetTypes';
+
+type TouchableProps = $ReadOnly<{|
+  onTouchStart?: (event: PressEvent) => void,
+  onTouchMove?: (event: PressEvent) => void,
+  onTouchEnd?: (event: PressEvent) => void,
+  onTouchCancel?: (event: PressEvent) => void,
+  onTouchEndCapture?: (event: PressEvent) => void,
+|}>;
+
+type IOSProps = $ReadOnly<{|
+  automaticallyAdjustContentInsets?: ?boolean,
+  contentInset?: ?EdgeInsetsProp,
+  contentOffset?: ?PointProp,
+  bounces?: ?boolean,
+  bouncesZoom?: ?boolean,
+  alwaysBounceHorizontal?: ?boolean,
+  alwaysBounceVertical?: ?boolean,
+  centerContent?: ?boolean,
+  decelerationRate?: ?('fast' | 'normal' | number),
+  indicatorStyle?: ?('default' | 'black' | 'white'),
+  directionalLockEnabled?: ?boolean,
+  canCancelContentTouches?: ?boolean,
+  maintainVisibleContentPosition?: ?$ReadOnly<{|
+    minIndexForVisible: number,
+    autoscrollToTopThreshold?: ?number,
+  |}>,
+  maximumZoomScale?: ?number,
+  minimumZoomScale?: ?number,
+  pinchGestureEnabled?: ?boolean,
+  scrollEventThrottle?: ?number,
+  scrollIndicatorInsets?: ?EdgeInsetsProp,
+  scrollsToTop?: ?boolean,
+  showsHorizontalScrollIndicator?: ?boolean,
+  snapToAlignment?: ?('start' | 'center' | 'end'),
+  zoomScale?: ?number,
+  contentInsetAdjustmentBehavior?: ?(
+    | 'automatic'
+    | 'scrollableAxes'
+    | 'never'
+    | 'always'
+  ),
+  DEPRECATED_sendUpdatedChildFrames?: ?boolean,
+|}>;
+
+type AndroidProps = $ReadOnly<{|
+  nestedScrollEnabled?: ?boolean,
+  endFillColor?: ?ColorValue,
+  scrollPerfTag?: ?string,
+  overScrollMode?: ?('auto' | 'always' | 'never'),
+|}>;
+
+type VRProps = $ReadOnly<{|
+  scrollBarThumbImage?: ?($ReadOnly<{||}> | number),
+|}>;
+
+type Props = $ReadOnly<{|
+  ...ViewProps,
+  ...TouchableProps,
+  ...IOSProps,
+  ...AndroidProps,
+  ...VRProps,
+
+  contentContainerStyle?: ?ViewStyleProp,
+  horizontal?: ?boolean,
+  invertStickyHeaders?: ?boolean,
+  keyboardDismissMode?: ?(
+    | 'none' // default
+    | 'on-drag' // cross-platform
+    | 'interactive'
+  ), // ios only
+  // $FlowFixMe Issues found when typing ScrollView
+  keyboardShouldPersistTaps?: ?('always' | 'never' | 'handled' | false | true),
+  onMomentumScrollBegin?: ?Function,
+  onMomentumScrollEnd?: ?Function,
+
+  onScroll?: ?Function,
+  onScrollBeginDrag?: ?Function,
+  onScrollEndDrag?: ?Function,
+  onContentSizeChange?: ?Function,
+  onKeyboardDidShow?: (event: PressEvent) => void,
+  pagingEnabled?: ?boolean,
+  scrollEnabled?: ?boolean,
+  showsVerticalScrollIndicator?: ?boolean,
+  stickyHeaderIndices?: ?$ReadOnlyArray<number>,
+  snapToInterval?: ?number,
+  removeClippedSubviews?: ?boolean,
+  refreshControl?: ?React.Element<any>,
+  style?: ?ViewStyleProp,
+  children?: React.Node,
+|}>;
 
 /**
  * Component that wraps platform ScrollView while providing
@@ -75,7 +173,6 @@ import type {NativeMethodsMixinType} from 'ReactNativeTypes';
  * multiple columns, infinite scroll loading, or any number of other features it
  * supports out of the box.
  */
-// $FlowFixMe(>=0.41.0)
 const ScrollView = createReactClass({
   displayName: 'ScrollView',
   propTypes: {
@@ -521,9 +618,11 @@ const ScrollView = createReactClass({
 
   UNSAFE_componentWillMount: function() {
     this._scrollAnimatedValue = new AnimatedImplementation.Value(
+      // $FlowFixMe
       this.props.contentOffset ? this.props.contentOffset.y : 0,
     );
     this._scrollAnimatedValue.setOffset(
+      // $FlowFixMe
       this.props.contentInset ? this.props.contentInset.top : 0,
     );
     this._stickyHeaderRefs = new Map();
@@ -633,6 +732,7 @@ const ScrollView = createReactClass({
   },
 
   _getKeyForIndex: function(index, childArray) {
+    // $FlowFixMe Invalid prop usage
     const child = childArray[index];
     return child && child.key;
   },
@@ -665,6 +765,7 @@ const ScrollView = createReactClass({
     if (!this.props.stickyHeaderIndices) {
       return;
     }
+    // $FlowFixMe Invalid prop usage
     const childArray = React.Children.toArray(this.props.children);
     if (key !== this._getKeyForIndex(index, childArray)) {
       // ignore stale layout update
@@ -674,8 +775,10 @@ const ScrollView = createReactClass({
     const layoutY = event.nativeEvent.layout.y;
     this._headerLayoutYs.set(key, layoutY);
 
+    // $FlowFixMe Invalid prop usage
     const indexOfIndex = this.props.stickyHeaderIndices.indexOf(index);
     const previousHeaderIndex = this.props.stickyHeaderIndices[
+      // $FlowFixMe Invalid prop usage
       indexOfIndex - 1
     ];
     if (previousHeaderIndex != null) {
@@ -796,12 +899,16 @@ const ScrollView = createReactClass({
     const hasStickyHeaders =
       stickyHeaderIndices && stickyHeaderIndices.length > 0;
     const childArray =
+      // $FlowFixMe Invalid prop usage
       hasStickyHeaders && React.Children.toArray(this.props.children);
     const children = hasStickyHeaders
-      ? childArray.map((child, index) => {
+      ? // $FlowFixMe Invalid prop usage
+        childArray.map((child, index) => {
+          // $FlowFixMe Invalid prop usage
           const indexOfIndex = child ? stickyHeaderIndices.indexOf(index) : -1;
           if (indexOfIndex > -1) {
             const key = child.key;
+            // $FlowFixMe Invalid prop usage
             const nextIndex = stickyHeaderIndices[indexOfIndex + 1];
             return (
               <ScrollViewStickyHeader
@@ -823,10 +930,12 @@ const ScrollView = createReactClass({
             return child;
           }
         })
-      : this.props.children;
+      : // $FlowFixMe Invalid prop usage
+        this.props.children;
     const contentContainer = (
       <ScrollContentContainerViewClass
         {...contentSizeChangeProps}
+        // $FlowFixMe Invalid prop usage
         ref={this._setInnerViewRef}
         style={contentContainerStyle}
         removeClippedSubviews={
@@ -871,6 +980,7 @@ const ScrollView = createReactClass({
       onResponderGrant: this.scrollResponderHandleResponderGrant,
       onResponderReject: this.scrollResponderHandleResponderReject,
       onResponderRelease: this.scrollResponderHandleResponderRelease,
+      // $FlowFixMe
       onResponderTerminate: this.scrollResponderHandleTerminate,
       onResponderTerminationRequest: this
         .scrollResponderHandleTerminationRequest,
@@ -910,6 +1020,7 @@ const ScrollView = createReactClass({
         // On iOS the RefreshControl is a child of the ScrollView.
         // tvOS lacks native support for RefreshControl, so don't include it in that case
         return (
+          // $FlowFixMe Invalid prop usage
           <ScrollViewClass {...props} ref={this._setScrollViewRef}>
             {Platform.isTVOS ? null : refreshControl}
             {contentContainer}
@@ -928,6 +1039,7 @@ const ScrollView = createReactClass({
           <ScrollViewClass
             {...props}
             style={baseStyle}
+            // $FlowFixMe Invalid prop usage
             ref={this._setScrollViewRef}>
             {contentContainer}
           </ScrollViewClass>,
@@ -935,12 +1047,17 @@ const ScrollView = createReactClass({
       }
     }
     return (
+      // $FlowFixMe Invalid prop usage
       <ScrollViewClass {...props} ref={this._setScrollViewRef}>
         {contentContainer}
       </ScrollViewClass>
     );
   },
 });
+
+const TypedScrollView = ((ScrollView: any): Class<
+  InternalScrollViewType<Props>,
+>);
 
 const styles = StyleSheet.create({
   baseVertical: {
@@ -1012,4 +1129,4 @@ if (Platform.OS === 'android') {
   RCTScrollContentView = requireNativeComponent('RCTScrollContentView', View);
 }
 
-module.exports = ScrollView;
+module.exports = TypedScrollView;
