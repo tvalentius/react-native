@@ -44,9 +44,7 @@ void ShadowTree::constraintLayout(const LayoutConstraints &layoutConstraints, co
 
 UnsharedRootShadowNode ShadowTree::cloneRootShadowNode(const LayoutConstraints &layoutConstraints, const LayoutContext &layoutContext) const {
   auto oldRootShadowNode = rootShadowNode_;
-  auto &&props = std::make_shared<RootProps>(*oldRootShadowNode->getProps());
-  props->applyLayoutConstraints(layoutConstraints);
-  props->applyLayoutContext(layoutContext);
+  auto &&props = std::make_shared<const RootProps>(*oldRootShadowNode->getProps(), layoutConstraints, layoutContext);
   auto newRootShadowNode = std::make_shared<RootShadowNode>(oldRootShadowNode, props, nullptr);
   return newRootShadowNode;
 }
@@ -71,8 +69,7 @@ void ShadowTree::complete(UnsharedRootShadowNode newRootShadowNode) {
   calculateMutationInstructions(
     instructions,
     oldRootShadowNode,
-    oldRootShadowNode->ShadowNode::getChildren(),
-    newRootShadowNode->ShadowNode::getChildren()
+    newRootShadowNode
   );
 
   if (commit(newRootShadowNode)) {
