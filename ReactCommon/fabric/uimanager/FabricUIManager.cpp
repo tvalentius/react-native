@@ -48,7 +48,7 @@ static const std::string componentNameByReactViewName(std::string viewName) {
   std::string rctPrefix("RCT");
   if (std::mismatch(rctPrefix.begin(), rctPrefix.end(), viewName.begin()).first == rctPrefix.end()) {
     // If `viewName` has "RCT" prefix, remove it.
-    viewName.erase(0, 3);
+    viewName.erase(0, rctPrefix.length());
   }
 
   // Fabric uses slightly new names for Text components because of differences
@@ -61,18 +61,10 @@ static const std::string componentNameByReactViewName(std::string viewName) {
   }
 
   // We need this temporarly for testing purposes until we have proper
-  // implementation of <ScrollView> component.
+  // implementation of core components: <Image>, <ScrollContentView>.
   if (
-    viewName == "ScrollContentView" ||
-    viewName == "ScrollView"
-  ) {
-    return "View";
-  }
-
-  // Other temporary fallback until the native components are implemented.
-  if (
-    viewName == "ActivityIndicatorView" ||
-    viewName == "ShimmeringView"
+    viewName == "ImageView" ||
+    viewName == "ScrollContentView"
   ) {
     return "View";
   }
@@ -84,6 +76,12 @@ FabricUIManager::FabricUIManager(SharedComponentDescriptorRegistry componentDesc
   componentDescriptorRegistry_ = componentDescriptorRegistry;
 }
 
+FabricUIManager::~FabricUIManager() {
+  if (eventHandler_) {
+    releaseEventTargetFunction_(eventHandler_);
+  }
+}
+
 void FabricUIManager::setDelegate(UIManagerDelegate *delegate) {
   delegate_ = delegate;
 }
@@ -92,7 +90,40 @@ UIManagerDelegate *FabricUIManager::getDelegate() {
   return delegate_;
 }
 
-SharedShadowNode FabricUIManager::createNode(int tag, std::string viewName, int rootTag, folly::dynamic props, void *instanceHandle) {
+void FabricUIManager::setCreateEventTargetFunction(std::function<CreateEventTargetFunction> createEventTargetFunction) {
+  createEventTargetFunction_ = createEventTargetFunction;
+}
+
+void FabricUIManager::setDispatchEventFunction(std::function<DispatchEventFunction> dispatchEventFunction) {
+  dispatchEventFunction_ = dispatchEventFunction;
+}
+
+void FabricUIManager::setReleaseEventTargetFunction(std::function<ReleaseEventTargetFunction> releaseEventTargetFunction) {
+  releaseEventTargetFunction_ = releaseEventTargetFunction;
+}
+
+void FabricUIManager::setReleaseEventHandlerFunction(std::function<ReleaseEventHandlerFunction> releaseEventHandlerFunction) {
+  releaseEventHandlerFunction_ = releaseEventHandlerFunction;
+}
+
+void *FabricUIManager::createEventTarget(void *instanceHandle) {
+  return createEventTargetFunction_(instanceHandle);
+}
+
+void FabricUIManager::dispatchEvent(void *eventTarget, const std::string &type, const folly::dynamic &payload) {
+  dispatchEventFunction_(
+    eventHandler_,
+    eventTarget,
+    const_cast<std::string &>(type),
+    const_cast<folly::dynamic &>(payload)
+  );
+}
+
+void FabricUIManager::releaseEventTarget(void *eventTarget) {
+  releaseEventTargetFunction_(eventTarget);
+}
+
+SharedShadowNode FabricUIManager::createNode(int tag, std::string viewName, int rootTag, folly::dynamic props, InstanceHandle instanceHandle) {
   isLoggingEnabled && LOG(INFO) << "FabricUIManager::createNode(tag: " << tag << ", name: " << viewName << ", rootTag" << rootTag << ", props: " << props << ")";
 
   ComponentName componentName = componentNameByReactViewName(viewName);
@@ -103,7 +134,7 @@ SharedShadowNode FabricUIManager::createNode(int tag, std::string viewName, int 
     componentDescriptor->createShadowNode(
       tag,
       rootTag,
-      instanceHandle,
+      componentDescriptor->createEventHandlers(instanceHandle),
       componentDescriptor->cloneProps(nullptr, rawProps)
     );
 
@@ -116,18 +147,23 @@ SharedShadowNode FabricUIManager::createNode(int tag, std::string viewName, int 
   return shadowNode;
 }
 
-SharedShadowNode FabricUIManager::cloneNode(const SharedShadowNode &shadowNode) {
+SharedShadowNode FabricUIManager::cloneNode(const SharedShadowNode &shadowNode, InstanceHandle instanceHandle) {
   isLoggingEnabled && LOG(INFO) << "FabricUIManager::cloneNode(shadowNode: " << shadowNode->getDebugDescription(DebugStringConvertibleOptions {.format = false}) << ")";
   const SharedComponentDescriptor &componentDescriptor = (*componentDescriptorRegistry_)[shadowNode];
 
   SharedShadowNode clonedShadowNode =
-    componentDescriptor->cloneShadowNode(shadowNode);
+    componentDescriptor->cloneShadowNode(
+      shadowNode,
+      nullptr,
+      componentDescriptor->createEventHandlers(instanceHandle),
+      nullptr
+    );
 
   isLoggingEnabled && LOG(INFO) << "FabricUIManager::cloneNode() -> " << clonedShadowNode->getDebugDescription(DebugStringConvertibleOptions {.format = false});
   return clonedShadowNode;
 }
 
-SharedShadowNode FabricUIManager::cloneNodeWithNewChildren(const SharedShadowNode &shadowNode) {
+SharedShadowNode FabricUIManager::cloneNodeWithNewChildren(const SharedShadowNode &shadowNode, InstanceHandle instanceHandle) {
   isLoggingEnabled && LOG(INFO) << "FabricUIManager::cloneNodeWithNewChildren(shadowNode: " << shadowNode->getDebugDescription(DebugStringConvertibleOptions {.format = false}) << ")";
   // Assuming semantic: Cloning with same props but empty children.
   const SharedComponentDescriptor &componentDescriptor = (*componentDescriptorRegistry_)[shadowNode];
@@ -136,6 +172,7 @@ SharedShadowNode FabricUIManager::cloneNodeWithNewChildren(const SharedShadowNod
     componentDescriptor->cloneShadowNode(
       shadowNode,
       nullptr,
+      componentDescriptor->createEventHandlers(instanceHandle),
       ShadowNode::emptySharedShadowNodeSharedList()
     );
 
@@ -143,7 +180,7 @@ SharedShadowNode FabricUIManager::cloneNodeWithNewChildren(const SharedShadowNod
   return clonedShadowNode;
 }
 
-SharedShadowNode FabricUIManager::cloneNodeWithNewProps(const SharedShadowNode &shadowNode, folly::dynamic props) {
+SharedShadowNode FabricUIManager::cloneNodeWithNewProps(const SharedShadowNode &shadowNode, folly::dynamic props, InstanceHandle instanceHandle) {
   isLoggingEnabled && LOG(INFO) << "FabricUIManager::cloneNodeWithNewProps(shadowNode: " << shadowNode->getDebugDescription(DebugStringConvertibleOptions {.format = false}) << ", props: " << props << ")";
   // Assuming semantic: Cloning with same children and specified props.
   const SharedComponentDescriptor &componentDescriptor = (*componentDescriptorRegistry_)[shadowNode];
@@ -153,6 +190,7 @@ SharedShadowNode FabricUIManager::cloneNodeWithNewProps(const SharedShadowNode &
     componentDescriptor->cloneShadowNode(
       shadowNode,
       componentDescriptor->cloneProps(shadowNode->getProps(), rawProps),
+      componentDescriptor->createEventHandlers(instanceHandle),
       nullptr
     );
 
@@ -160,7 +198,7 @@ SharedShadowNode FabricUIManager::cloneNodeWithNewProps(const SharedShadowNode &
   return clonedShadowNode;
 }
 
-SharedShadowNode FabricUIManager::cloneNodeWithNewChildrenAndProps(const SharedShadowNode &shadowNode, folly::dynamic props) {
+SharedShadowNode FabricUIManager::cloneNodeWithNewChildrenAndProps(const SharedShadowNode &shadowNode, folly::dynamic props, InstanceHandle instanceHandle) {
   isLoggingEnabled && LOG(INFO) << "FabricUIManager::cloneNodeWithNewChildrenAndProps(shadowNode: " << shadowNode->getDebugDescription(DebugStringConvertibleOptions {.format = false}) << ", props: " << props << ")";
   // Assuming semantic: Cloning with empty children and specified props.
   const SharedComponentDescriptor &componentDescriptor = (*componentDescriptorRegistry_)[shadowNode];
@@ -170,6 +208,7 @@ SharedShadowNode FabricUIManager::cloneNodeWithNewChildrenAndProps(const SharedS
     componentDescriptor->cloneShadowNode(
       shadowNode,
       componentDescriptor->cloneProps(shadowNode->getProps(), rawProps),
+      componentDescriptor->createEventHandlers(instanceHandle),
       ShadowNode::emptySharedShadowNodeSharedList()
     );
 
@@ -210,6 +249,11 @@ void FabricUIManager::completeRoot(int rootTag, const SharedShadowNodeUnsharedLi
   if (delegate_) {
     delegate_->uiManagerDidFinishTransaction(rootTag, children);
   }
+}
+
+void FabricUIManager::registerEventHandler(void *eventHandler) {
+  isLoggingEnabled && LOG(INFO) << "FabricUIManager::registerEventHandler(eventHandler)";
+  eventHandler_ = eventHandler;
 }
 
 } // namespace react

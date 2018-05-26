@@ -3,27 +3,25 @@
 #include "Scheduler.h"
 
 #include <fabric/core/LayoutContext.h>
+#include <fabric/scrollview/ScrollViewComponentDescriptor.h>
+#include <fabric/text/ParagraphComponentDescriptor.h>
+#include <fabric/text/RawTextComponentDescriptor.h>
+#include <fabric/text/TextComponentDescriptor.h>
 #include <fabric/uimanager/ComponentDescriptorRegistry.h>
 #include <fabric/uimanager/FabricUIManager.h>
-#include <fabric/text/ParagraphComponentDescriptor.h>
-#include <fabric/text/TextComponentDescriptor.h>
-#include <fabric/text/RawTextComponentDescriptor.h>
 #include <fabric/view/ViewComponentDescriptor.h>
 #include <fabric/view/ViewProps.h>
 #include <fabric/view/ViewShadowNode.h>
 
+#include "ComponentDescriptorFactory.h"
 #include "Differentiator.h"
 
 namespace facebook {
 namespace react {
 
 Scheduler::Scheduler() {
-  auto componentDescriptorRegistry = std::make_shared<ComponentDescriptorRegistry>();
-  componentDescriptorRegistry->registerComponentDescriptor(std::make_shared<ViewComponentDescriptor>());
-  componentDescriptorRegistry->registerComponentDescriptor(std::make_shared<ParagraphComponentDescriptor>());
-  componentDescriptorRegistry->registerComponentDescriptor(std::make_shared<TextComponentDescriptor>());
-  componentDescriptorRegistry->registerComponentDescriptor(std::make_shared<RawTextComponentDescriptor>());
-
+  eventDispatcher_ = std::make_shared<SchedulerEventDispatcher>();
+  auto componentDescriptorRegistry = ComponentDescriptorFactory::buildRegistry(eventDispatcher_);
   uiManager_ = std::make_shared<FabricUIManager>(componentDescriptorRegistry);
   uiManager_->setDelegate(this);
 }

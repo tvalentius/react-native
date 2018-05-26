@@ -10,13 +10,9 @@
 namespace facebook {
 namespace react {
 
-/**
- * An interface for FabricUIManager to perform platform-specific UI operations, like updating native UIView's in iOS.
- */
-class IFabricPlatformUIOperationManager {
-public:
-  // TODO: add meaningful methods
-  virtual void performUIOperation() = 0;
+enum class ActivityIndicatorViewSize {
+  Large,
+  Small,
 };
 
 } // namespace react

@@ -35,6 +35,7 @@ import com.facebook.react.uimanager.ViewManager;
 import com.facebook.react.uimanager.ViewManagerRegistry;
 import com.facebook.react.uimanager.common.MeasureSpecProvider;
 import com.facebook.react.uimanager.common.SizeMonitoringFrameLayout;
+import com.facebook.yoga.YogaDirection;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -70,10 +71,14 @@ public class FabricUIManager implements UIManager {
     mFabricReconciler = new FabricReconciler(mUIViewOperationQueue);
   }
 
+  public void registerEventHandler(long eventHandlerPointer) {
+    // TODO: Release this event handler at some point.
+  }
+
   /** Creates a new {@link ReactShadowNode} */
   @Nullable
   public ReactShadowNode createNode(
-      int reactTag, String viewName, int rootTag, ReadableNativeMap props, int instanceHandle) {
+      int reactTag, String viewName, int rootTag, ReadableNativeMap props, long instanceHandle) {
     if (DEBUG) {
       Log.d(TAG, "createNode \n\ttag: " + reactTag +
           "\n\tviewName: " + viewName +
@@ -122,11 +127,12 @@ public class FabricUIManager implements UIManager {
    *     including its children set (note that the children nodes will not be cloned).
    */
   @Nullable
-  public ReactShadowNode cloneNode(ReactShadowNode node) {
+  public ReactShadowNode cloneNode(ReactShadowNode node, long instanceHandle) {
     if (DEBUG) {
       Log.d(TAG, "cloneNode \n\tnode: " + node);
     }
     try {
+      // TODO: Pass new instanceHandle
       ReactShadowNode clone = node.mutableCopy();
       assertReactShadowNodeCopy(node, clone);
       return clone;
@@ -142,11 +148,12 @@ public class FabricUIManager implements UIManager {
    *     children set will be empty.
    */
   @Nullable
-  public ReactShadowNode cloneNodeWithNewChildren(ReactShadowNode node) {
+  public ReactShadowNode cloneNodeWithNewChildren(ReactShadowNode node, long instanceHandle) {
     if (DEBUG) {
       Log.d(TAG, "cloneNodeWithNewChildren \n\tnode: " + node);
     }
     try {
+      // TODO: Pass new instanceHandle
       ReactShadowNode clone = node.mutableCopyWithNewChildren();
       assertReactShadowNodeCopy(node, clone);
       return clone;
@@ -163,11 +170,12 @@ public class FabricUIManager implements UIManager {
    */
   @Nullable
   public ReactShadowNode cloneNodeWithNewProps(
-      ReactShadowNode node, @Nullable ReadableNativeMap newProps) {
+      ReactShadowNode node, @Nullable ReadableNativeMap newProps, long instanceHandle) {
     if (DEBUG) {
       Log.d(TAG, "cloneNodeWithNewProps \n\tnode: " + node + "\n\tprops: " + newProps);
     }
     try {
+      // TODO: Pass new instanceHandle
       ReactShadowNode clone =
           node.mutableCopyWithNewProps(newProps == null ? null : new ReactStylesDiffMap(newProps));
       assertReactShadowNodeCopy(node, clone);
@@ -186,11 +194,12 @@ public class FabricUIManager implements UIManager {
    */
   @Nullable
   public ReactShadowNode cloneNodeWithNewChildrenAndProps(
-      ReactShadowNode node, ReadableNativeMap newProps) {
+      ReactShadowNode node, ReadableNativeMap newProps, long instanceHandle) {
     if (DEBUG) {
       Log.d(TAG, "cloneNodeWithNewChildrenAndProps \n\tnode: " + node + "\n\tnewProps: " + newProps);
     }
     try {
+      // TODO: Pass new instanceHandle
       ReactShadowNode clone =
           node.mutableCopyWithNewChildrenAndProps(
               newProps == null ? null : new ReactStylesDiffMap(newProps));
@@ -411,7 +420,9 @@ public class FabricUIManager implements UIManager {
   private ReactShadowNode createRootShadowNode(int rootTag, ThemedReactContext themedReactContext) {
     ReactShadowNode rootNode = new ReactShadowNodeImpl();
     I18nUtil sharedI18nUtilInstance = I18nUtil.getInstance();
-    // TODO: setLayoutDirection for the rootNode
+    if (sharedI18nUtilInstance.isRTL(themedReactContext)) {
+      rootNode.setLayoutDirection(YogaDirection.RTL);
+    }
     rootNode.setViewClassName("Root");
     rootNode.setReactTag(rootTag);
     rootNode.setThemedContext(themedReactContext);
