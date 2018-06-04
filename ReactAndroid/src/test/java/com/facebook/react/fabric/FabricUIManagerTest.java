@@ -1,4 +1,7 @@
-// Copyright 2004-present Facebook. All Rights Reserved.
+// Copyright (c) 2004-present, Facebook, Inc.
+
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
 package com.facebook.react.fabric;
 
 import static org.fest.assertions.api.Assertions.assertThat;
@@ -10,6 +13,7 @@ import com.facebook.react.bridge.JavaScriptContextHolder;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactTestHelper;
 import com.facebook.react.bridge.ReadableNativeMap;
+import com.facebook.react.uimanager.events.EventDispatcher;
 import com.facebook.react.uimanager.ReactShadowNode;
 import com.facebook.react.uimanager.ReactShadowNodeImpl;
 import com.facebook.react.uimanager.Spacing;
@@ -52,7 +56,8 @@ public class FabricUIManagerTest {
             new ReactViewManager(), new ReactTextViewManager(), new ReactRawTextManager());
     ViewManagerRegistry viewManagerRegistry = new ViewManagerRegistry(viewManagers);
     JavaScriptContextHolder jsContext = mock(JavaScriptContextHolder.class);
-    mFabricUIManager = new FabricUIManager(reactContext, viewManagerRegistry, jsContext);
+    EventDispatcher eventDispatcher = mock(EventDispatcher.class);
+    mFabricUIManager = new FabricUIManager(reactContext, viewManagerRegistry, jsContext, eventDispatcher);
   }
 
   @Test

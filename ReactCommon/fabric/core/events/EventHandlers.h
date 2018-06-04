@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 
 #include <folly/dynamic.h>
 #include <fabric/core/EventDispatcher.h>
@@ -20,8 +21,6 @@ class EventHandlers;
 
 using SharedEventHandlers = std::shared_ptr<const EventHandlers>;
 
-
-
 /*
  * Base class for all particular typed event handlers.
  * Stores `InstanceHandle` identifying a particular component and the pointer
@@ -32,8 +31,8 @@ using SharedEventHandlers = std::shared_ptr<const EventHandlers>;
 class EventHandlers {
 
 public:
-  EventHandlers(InstanceHandle instanceHandle, SharedEventDispatcher eventDispatcher);
-  virtual ~EventHandlers() = default;
+  EventHandlers(const InstanceHandle &instanceHandle, const Tag &tag, const SharedEventDispatcher &eventDispatcher);
+  virtual ~EventHandlers();
 
 protected:
 
@@ -42,15 +41,21 @@ protected:
    * Is used by particular subclasses only.
    */
   void dispatchEvent(
-    const std::string &name,
-    const folly::dynamic &payload = {},
+    const std::string &type,
+    const folly::dynamic &payload = folly::dynamic::object(),
     const EventPriority &priority = EventPriority::AsynchronousBatched
   ) const;
 
 private:
 
+  void createEventTargetIfNeeded() const;
+  void releaseEventTargetIfNeeded() const;
+
   InstanceHandle instanceHandle_;
+  Tag tag_;
   std::weak_ptr<const EventDispatcher> eventDispatcher_;
+  mutable EventTarget eventTarget_ {nullptr};
+  mutable std::mutex mutex_;
 };
 
 } // namespace react
