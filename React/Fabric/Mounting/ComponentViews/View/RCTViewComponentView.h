@@ -26,6 +26,36 @@ NS_ASSUME_NONNULL_BEGIN
   facebook::react::SharedViewEventEmitter _eventEmitter;
 }
 
+/**
+ * Represents the `UIView` instance that is being automatically attached to
+ * the component view and laid out using on `layoutMetrics` (especially `size`
+ * and `padding`) of the component.
+ * This view must not be a component view; it's just a convenient way
+ * to embed/bridge pure native views as component views.
+ * Defaults to `nil`. Assing `nil` to remove view as subview.
+ */
+@property (nonatomic, strong, nullable) UIView *contentView;
+
+/**
+ * Provides access to `nativeId` prop of the component.
+ * It might be used by subclasses (which need to refer to the view from
+ * other platform-specific external views or systems by some id) or
+ * by debugging/inspection tools.
+ * Defaults to `nil`.
+ */
+@property (nonatomic, strong, nullable) NSString *nativeId;
+
+/**
+ * Provides access to `foregroundColor` prop of the component.
+ * Must be used by subclasses only.
+ */
+@property (nonatomic, strong, nullable) UIColor *foregroundColor;
+
+/**
+ * Insets used when hit testing inside this view.
+ */
+@property (nonatomic, assign) UIEdgeInsets hitTestEdgeInsets;
+
 @end
 
 NS_ASSUME_NONNULL_END
