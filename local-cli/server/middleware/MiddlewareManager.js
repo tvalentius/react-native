@@ -11,7 +11,6 @@
 const compression = require('compression');
 const connect = require('connect');
 const errorhandler = require('errorhandler');
-const morgan = require('morgan');
 const path = require('path');
 const serveStatic = require('serve-static');
 const WebSocketServer = require('ws').Server;
@@ -33,14 +32,15 @@ type WebSocketProxy = {
   server: WebSocketServer,
   isChromeConnected: () => boolean,
 };
-type Connect = any;
+
+type Connect = $Call<connect>;
 
 module.exports = class MiddlewareManager {
   app: Connect;
   options: Options;
 
   constructor(options: Options) {
-    const debuggerUIFolder = path.join(__dirname, 'util', 'debugger-ui');
+    const debuggerUIFolder = path.join(__dirname, '..', 'util', 'debugger-ui');
 
     this.options = options;
     this.app = connect()
@@ -52,7 +52,6 @@ module.exports = class MiddlewareManager {
       .use(statusPageMiddleware)
       .use(systraceProfileMiddleware)
       .use(indexPageMiddleware)
-      .use(morgan('combined'))
       .use(errorhandler());
   }
 

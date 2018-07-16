@@ -9,86 +9,6 @@
 #include <iostream>
 #include "Utils.h"
 
-void* YGNode::getContext() const {
-  return context_;
-}
-
-YGPrintFunc YGNode::getPrintFunc() const {
-  return print_;
-}
-
-bool YGNode::getHasNewLayout() const {
-  return hasNewLayout_;
-}
-
-YGNodeType YGNode::getNodeType() const {
-  return nodeType_;
-}
-
-YGMeasureFunc YGNode::getMeasure() const {
-  return measure_;
-}
-
-YGBaselineFunc YGNode::getBaseline() const {
-  return baseline_;
-}
-
-YGDirtiedFunc YGNode::getDirtied() const {
-  return dirtied_;
-}
-
-YGStyle& YGNode::getStyle() {
-  return style_;
-}
-
-YGLayout& YGNode::getLayout() {
-  return layout_;
-}
-
-uint32_t YGNode::getLineIndex() const {
-  return lineIndex_;
-}
-
-YGNodeRef YGNode::getOwner() const {
-  return owner_;
-}
-
-YGNodeRef YGNode::getParent() const {
-  return getOwner();
-}
-
-YGVector YGNode::getChildren() const {
-  return children_;
-}
-
-uint32_t YGNode::getChildrenCount() const {
-  return static_cast<uint32_t>(children_.size());
-}
-
-YGNodeRef YGNode::getChild(uint32_t index) const {
-  return children_.at(index);
-}
-
-YGNodeRef YGNode::getNextChild() const {
-  return nextChild_;
-}
-
-YGConfigRef YGNode::getConfig() const {
-  return config_;
-}
-
-bool YGNode::isDirty() const {
-  return isDirty_;
-}
-
-YGValue YGNode::getResolvedDimension(int index) {
-  return resolvedDimensions_[index];
-}
-
-std::array<YGValue, 2> YGNode::getResolvedDimensions() const {
-  return resolvedDimensions_;
-}
-
 YGFloatOptional YGNode::getLeadingPosition(
     const YGFlexDirection& axis,
     const float& axisSize) const {
@@ -177,29 +97,7 @@ YGFloatOptional YGNode::getMarginForAxis(
 
 // Setters
 
-void YGNode::setContext(void* context) {
-  context_ = context;
-}
 
-void YGNode::setPrintFunc(YGPrintFunc printFunc) {
-  print_ = printFunc;
-}
-
-void YGNode::setHasNewLayout(bool hasNewLayout) {
-  hasNewLayout_ = hasNewLayout;
-}
-
-void YGNode::setNodeType(YGNodeType nodeType) {
-  nodeType_ = nodeType;
-}
-
-void YGNode::setStyleFlexDirection(YGFlexDirection direction) {
-  style_.flexDirection = direction;
-}
-
-void YGNode::setStyleAlignContent(YGAlign alignContent) {
-  style_.alignContent = alignContent;
-}
 
 void YGNode::setMeasureFunc(YGMeasureFunc measureFunc) {
   if (measureFunc == nullptr) {
@@ -221,38 +119,6 @@ void YGNode::setMeasureFunc(YGMeasureFunc measureFunc) {
   measure_ = measureFunc;
 }
 
-void YGNode::setBaseLineFunc(YGBaselineFunc baseLineFunc) {
-  baseline_ = baseLineFunc;
-}
-
-void YGNode::setDirtiedFunc(YGDirtiedFunc dirtiedFunc) {
-  dirtied_ = dirtiedFunc;
-}
-
-void YGNode::setStyle(const YGStyle& style) {
-  style_ = style;
-}
-
-void YGNode::setLayout(const YGLayout& layout) {
-  layout_ = layout;
-}
-
-void YGNode::setLineIndex(uint32_t lineIndex) {
-  lineIndex_ = lineIndex;
-}
-
-void YGNode::setOwner(YGNodeRef owner) {
-  owner_ = owner;
-}
-
-void YGNode::setChildren(const YGVector& children) {
-  children_ = children;
-}
-
-void YGNode::setNextChild(YGNodeRef nextChild) {
-  nextChild_ = nextChild;
-}
-
 void YGNode::replaceChild(YGNodeRef child, uint32_t index) {
   children_[index] = child;
 }
@@ -263,10 +129,6 @@ void YGNode::replaceChild(YGNodeRef oldChild, YGNodeRef newChild) {
 
 void YGNode::insertChild(YGNodeRef child, uint32_t index) {
   children_.insert(children_.begin() + index, child);
-}
-
-void YGNode::setConfig(YGConfigRef config) {
-  config_ = config;
 }
 
 void YGNode::setDirty(bool isDirty) {
@@ -405,7 +267,6 @@ YGNode::YGNode()
       lineIndex_(0),
       owner_(nullptr),
       children_(YGVector()),
-      nextChild_(nullptr),
       config_(nullptr),
       isDirty_(false),
       resolvedDimensions_({{YGValueUndefined, YGValueUndefined}}) {}
@@ -423,7 +284,6 @@ YGNode::YGNode(const YGNode& node)
       lineIndex_(node.lineIndex_),
       owner_(node.owner_),
       children_(node.children_),
-      nextChild_(node.nextChild_),
       config_(node.config_),
       isDirty_(node.isDirty_),
       resolvedDimensions_(node.resolvedDimensions_) {}
@@ -445,7 +305,6 @@ YGNode::YGNode(
     uint32_t lineIndex,
     YGNodeRef owner,
     const YGVector& children,
-    YGNodeRef nextChild,
     YGConfigRef config,
     bool isDirty,
     std::array<YGValue, 2> resolvedDimensions)
@@ -461,7 +320,6 @@ YGNode::YGNode(
       lineIndex_(lineIndex),
       owner_(owner),
       children_(children),
-      nextChild_(nextChild),
       config_(config),
       isDirty_(isDirty),
       resolvedDimensions_(resolvedDimensions) {}
@@ -487,7 +345,6 @@ YGNode& YGNode::operator=(const YGNode& node) {
   lineIndex_ = node.getLineIndex();
   owner_ = node.getOwner();
   children_ = node.getChildren();
-  nextChild_ = node.getNextChild();
   config_ = node.getConfig();
   isDirty_ = node.isDirty();
   resolvedDimensions_ = node.getResolvedDimensions();

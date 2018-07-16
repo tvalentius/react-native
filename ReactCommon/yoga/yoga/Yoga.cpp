@@ -264,7 +264,7 @@ static YGNodeRef YGNodeDeepClone(YGNodeRef oldNode) {
   YGVector vec = YGVector();
   vec.reserve(oldNode->getChildren().size());
   YGNodeRef childNode = nullptr;
-  for (auto& item : oldNode->getChildren()) {
+  for (auto* item : oldNode->getChildren()) {
     childNode = YGNodeDeepClone(item);
     childNode->setOwner(node);
     vec.push_back(childNode);
@@ -273,10 +273,6 @@ static YGNodeRef YGNodeDeepClone(YGNodeRef oldNode) {
 
   if (oldNode->getConfig() != nullptr) {
     node->setConfig(YGConfigClone(*(oldNode->getConfig())));
-  }
-
-  if (oldNode->getNextChild() != nullptr) {
-    node->setNextChild(YGNodeDeepClone(oldNode->getNextChild()));
   }
 
   return node;
@@ -305,8 +301,8 @@ static void YGConfigFreeRecursive(const YGNodeRef root) {
     delete root->getConfig();
   }
   // Delete configs recursively for childrens
-  for (uint32_t i = 0; i < root->getChildrenCount(); ++i) {
-    YGConfigFreeRecursive(root->getChild(i));
+  for (auto* child : root->getChildren()) {
+    YGConfigFreeRecursive(child);
   }
 }
 
@@ -1253,9 +1249,9 @@ static void YGNodeComputeFlexBasisForChild(const YGNodeRef node,
     childWidthMeasureMode = YGMeasureModeUndefined;
     childHeightMeasureMode = YGMeasureModeUndefined;
 
-    const float& marginRow = YGUnwrapFloatOptional(
+    auto marginRow = YGUnwrapFloatOptional(
         child->getMarginForAxis(YGFlexDirectionRow, ownerWidth));
-    const float& marginColumn = YGUnwrapFloatOptional(
+    auto marginColumn = YGUnwrapFloatOptional(
         child->getMarginForAxis(YGFlexDirectionColumn, ownerWidth));
 
     if (isRowStyleDimDefined) {
@@ -1381,9 +1377,9 @@ static void YGNodeAbsoluteLayoutChild(const YGNodeRef node,
   YGMeasureMode childWidthMeasureMode = YGMeasureModeUndefined;
   YGMeasureMode childHeightMeasureMode = YGMeasureModeUndefined;
 
-  const float& marginRow =
+  auto marginRow =
       YGUnwrapFloatOptional(child->getMarginForAxis(YGFlexDirectionRow, width));
-  const float& marginColumn = YGUnwrapFloatOptional(
+  auto marginColumn = YGUnwrapFloatOptional(
       child->getMarginForAxis(YGFlexDirectionColumn, width));
 
   if (YGNodeIsStyleDimDefined(child, YGFlexDirectionRow, width)) {
@@ -1683,9 +1679,9 @@ static bool YGNodeFixedSizeSetMeasuredDimensions(const YGNodeRef node,
        heightMeasureMode == YGMeasureModeAtMost && availableHeight <= 0.0f) ||
       (widthMeasureMode == YGMeasureModeExactly &&
        heightMeasureMode == YGMeasureModeExactly)) {
-    const float& marginAxisColumn = YGUnwrapFloatOptional(
+    auto marginAxisColumn = YGUnwrapFloatOptional(
         node->getMarginForAxis(YGFlexDirectionColumn, ownerWidth));
-    const float& marginAxisRow = YGUnwrapFloatOptional(
+    auto marginAxisRow = YGUnwrapFloatOptional(
         node->getMarginForAxis(YGFlexDirectionRow, ownerWidth));
 
     node->setLayoutMeasuredDimension(
@@ -1788,16 +1784,17 @@ static void YGNodeComputeFlexBasisForChildren(
   // child to exactly match the remaining space
   if (measureModeMainDim == YGMeasureModeExactly) {
     for (auto child : children) {
-      if (singleFlexChild != nullptr) {
-        if (child->isNodeFlexible()) {
-          // There is already a flexible child, abort
+      if (child->isNodeFlexible()) {
+        if (singleFlexChild != nullptr ||
+            YGFloatsEqual(child->resolveFlexGrow(), 0.0f) ||
+            YGFloatsEqual(child->resolveFlexShrink(), 0.0f)) {
+          // There is already a flexible child, or this flexible child doesn't
+          // have flexGrow and flexShrink, abort
           singleFlexChild = nullptr;
           break;
+        } else {
+          singleFlexChild = child;
         }
-      } else if (
-          child->resolveFlexGrow() > 0.0f &&
-          child->resolveFlexShrink() > 0.0f) {
-        singleFlexChild = child;
       }
     }
   }
@@ -1871,7 +1868,7 @@ static YGCollectFlexItemsRowValues YGCalculateCollectFlexItemsRowValues(
 
   // Add items to the current line until it's full or we run out of items.
   uint32_t endOfLineIndex = startOfLineIndex;
-  for (; endOfLineIndex < node->getChildrenCount(); endOfLineIndex++) {
+  for (; endOfLineIndex < node->getChildren().size(); endOfLineIndex++) {
     const YGNodeRef child = node->getChild(endOfLineIndex);
     if (child->getStyle().display == YGDisplayNone ||
         child->getStyle().positionType == YGPositionTypeAbsolute) {

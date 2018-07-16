@@ -16,6 +16,7 @@ const Metro = require('metro');
 
 const {Terminal} = require('metro-core');
 
+const morgan = require('morgan');
 const path = require('path');
 const MiddlewareManager = require('./middleware/MiddlewareManager');
 
@@ -47,6 +48,8 @@ async function runServer(args: Args, config: ConfigT) {
   const reporter = new ReporterImpl(terminal);
   const middlewareManager = new MiddlewareManager(args);
 
+  middlewareManager.getConnectInstance().use(morgan('combined'));
+
   args.watchFolders.forEach(middlewareManager.serveStatic);
 
   const serverInstance = await Metro.runServer({
@@ -63,6 +66,8 @@ async function runServer(args: Args, config: ConfigT) {
         : config.getTransformModulePath(),
       watch: !args.nonPersistent,
     },
+    host: args.host,
+    port: args.port,
   });
 
   // In Node 8, the default keep-alive for an HTTP connection is 5 seconds. In
@@ -75,7 +80,7 @@ async function runServer(args: Args, config: ConfigT) {
   //
   // For more info: https://github.com/nodejs/node/issues/13391
   //
-  // $FlowFixMe
+  // $FlowFixMe (site=react_native_fb)
   serverInstance.keepAliveTimeout = 30000;
 }
 
