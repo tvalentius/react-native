@@ -12,6 +12,7 @@ import android.support.v4.view.ViewCompat;
 import android.support.v4.view.accessibility.AccessibilityNodeInfoCompat;
 import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
+import com.facebook.react.bridge.ReadableArray;
 import javax.annotation.Nullable;
 
 /**
@@ -34,6 +35,7 @@ public class AccessibilityRoleUtil {
     LINK("android.widget.Button"),
     SEARCH("android.widget.EditText"),
     IMAGE("android.widget.ImageView"),
+    IMAGEBUTTON("android.widget.ImageView"),
     KEYBOARDKEY("android.inputmethodservice.Keyboard$Key"),
     TEXT("android.widget.ViewGroup"),
     ADJUSTABLE("android.widget.SeekBar");
@@ -91,13 +93,17 @@ public class AccessibilityRoleUtil {
     if (role.equals(AccessibilityRole.IMAGE)) {
       nodeInfo.setRoleDescription("Image");
     }
+    if (role.equals(AccessibilityRole.IMAGEBUTTON)) {
+      nodeInfo.setRoleDescription("Button Image");
+      nodeInfo.setClickable(true);
+    }
     if (role.equals(AccessibilityRole.ADJUSTABLE)) {
       nodeInfo.setRoleDescription("Adjustable");
     }
   }
   
   /**
-   * Variables and methods for setting accessibilityRole on view properties.
+   * Method for setting accessibilityRole on view properties.
    */
   public static void updateAccessibilityRole(View view, String role) {
     if (role == null) {

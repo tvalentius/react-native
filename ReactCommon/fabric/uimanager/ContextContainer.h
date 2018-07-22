@@ -20,24 +20,44 @@ using SharedContextContainer = std::shared_ptr<ContextContainer>;
 
 /*
  * General purpose dependecy injection container.
+ * Instance types must be copyable.
  */
 class ContextContainer final {
 
 public:
+  /*
+   * Registers an instance of the particular type `T` in the container.
+   * If `key` parameter is specified, the instance is registered
+   * by `{type, key}` pair.
+   */
   template<typename T>
-  void registerInstance(std::shared_ptr<T> instance) {
+  void registerInstance(const T &instance, const std::string &key = "") {
     std::lock_guard<std::mutex> lock(mutex_);
-    instances_.insert({std::type_index(typeid(T)), instance});
+
+    instances_.insert({
+      {std::type_index(typeid(T)), key},
+      std::make_shared<T>(instance)
+    });
   }
 
+  /*
+   * Returns a previously registered instance of the particular type `T`.
+   * If `key` parameter is specified, the lookup will be performed
+   * by {type, key} pair.
+   */
   template<typename T>
-  std::shared_ptr<T> getInstance() const {
+  T getInstance(const std::string &key = "") const {
     std::lock_guard<std::mutex> lock(mutex_);
-    return std::static_pointer_cast<T>(instances_.at(std::type_index(typeid(T))));
+
+    return *std::static_pointer_cast<T>(instances_.at({std::type_index(typeid(T)), key}));
   }
 
 private:
-  std::unordered_map<std::type_index, std::shared_ptr<void>> instances_;
+  std::unordered_map<
+    std::pair<std::type_index, std::string>,
+    std::shared_ptr<void>
+  > instances_;
+
   mutable std::mutex mutex_;
 };
 

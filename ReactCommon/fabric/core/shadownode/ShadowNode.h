@@ -11,11 +11,11 @@
 #include <memory>
 #include <vector>
 
-#include <fabric/core/EventEmitter.h>
 #include <fabric/core/LocalData.h>
 #include <fabric/core/Props.h>
 #include <fabric/core/ReactPrimitives.h>
 #include <fabric/core/Sealable.h>
+#include <fabric/events/EventEmitter.h>
 #include <fabric/debug/DebugStringConvertible.h>
 
 namespace facebook {
@@ -29,7 +29,7 @@ using SharedShadowNodeList = std::vector<std::shared_ptr<const ShadowNode>>;
 using SharedShadowNodeSharedList = std::shared_ptr<const SharedShadowNodeList>;
 using SharedShadowNodeUnsharedList = std::shared_ptr<SharedShadowNodeList>;
 
-using ShadowNodeCloneFunction = std::function<SharedShadowNode(
+using ShadowNodeCloneFunction = std::function<UnsharedShadowNode(
   const SharedShadowNode &shadowNode,
   const SharedProps &props,
   const SharedEventEmitter &eventEmitter,
@@ -64,7 +64,7 @@ public:
   /*
    * Clones the shadow node using stored `cloneFunction`.
    */
-  SharedShadowNode clone(
+  UnsharedShadowNode clone(
     const SharedProps &props = nullptr,
     const SharedShadowNodeSharedList &children = nullptr
   ) const;
@@ -93,7 +93,7 @@ public:
 #pragma mark - Mutating Methods
 
   void appendChild(const SharedShadowNode &child);
-  void replaceChild(const SharedShadowNode &oldChild, const SharedShadowNode &newChild);
+  void replaceChild(const SharedShadowNode &oldChild, const SharedShadowNode &newChild, int suggestedIndex = -1);
   void clearSourceNode();
 
   /*

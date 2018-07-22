@@ -47,7 +47,16 @@ export type AccessibilityRole =
   | 'image'
   | 'keyboardkey'
   | 'text'
-  | 'adjustable';
+  | 'adjustable'
+  | 'imagebutton'
+  | 'header'
+  | 'summary';
+
+export type AccessibilityState = 'selected' | 'disabled';
+
+export type AccessibilityStates =
+  | AccessibilityState
+  | $ReadOnlyArray<AccessibilityState>;
 
 module.exports = {
   AccessibilityTraits: [
@@ -84,5 +93,9 @@ module.exports = {
     'keyboardkey',
     'text',
     'adjustable',
+    'imagebutton',
+    'header',
+    'summary',
   ],
+  AccessibilityStates: ['selected', 'disabled'],
 };
