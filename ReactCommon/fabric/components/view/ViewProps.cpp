@@ -21,6 +21,7 @@ ViewProps::ViewProps(const YGStyle &yogaStyle) : YogaStylableProps(yogaStyle) {}
 ViewProps::ViewProps(const ViewProps &sourceProps, const RawProps &rawProps)
     : Props(sourceProps, rawProps),
       YogaStylableProps(sourceProps, rawProps),
+      AccessibilityProps(sourceProps, rawProps),
       opacity(
           convertRawProp(rawProps, "opacity", sourceProps.opacity, (Float)1.0)),
       foregroundColor(convertRawProp(
@@ -67,7 +68,12 @@ ViewProps::ViewProps(const ViewProps &sourceProps, const RawProps &rawProps)
       pointerEvents(
           convertRawProp(rawProps, "pointerEvents", sourceProps.pointerEvents)),
       hitSlop(convertRawProp(rawProps, "hitSlop", sourceProps.hitSlop)),
-      onLayout(convertRawProp(rawProps, "onLayout", sourceProps.onLayout)){};
+      onLayout(convertRawProp(rawProps, "onLayout", sourceProps.onLayout)),
+      collapsable(convertRawProp(
+          rawProps,
+          "collapsable",
+          sourceProps.collapsable,
+          true)){};
 
 #pragma mark - Convenience Methods
 
