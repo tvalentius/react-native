@@ -56,7 +56,6 @@ static NSString *const RCTJSThreadName = @"com.facebook.react.JavaScript";
 
 typedef void (^RCTPendingCall)();
 
-using namespace facebook::jsc;
 using namespace facebook::jsi;
 using namespace facebook::react;
 
@@ -90,6 +89,24 @@ public:
 private:
   RCTCxxBridge *bridge_;
   std::shared_ptr<JSExecutorFactory> factory_;
+};
+
+class JSCExecutorFactory : public JSExecutorFactory {
+public:
+  std::unique_ptr<JSExecutor> createJSExecutor(
+    std::shared_ptr<ExecutorDelegate> delegate,
+    std::shared_ptr<MessageQueueThread> jsQueue) override {
+    return folly::make_unique<JSIExecutor>(
+      facebook::jsc::makeJSCRuntime(),
+      delegate,
+      [](const std::string &message, unsigned int logLevel) {
+        _RCTLogJavaScriptInternal(
+          static_cast<RCTLogLevel>(logLevel),
+          [NSString stringWithUTF8String:message.c_str()]);
+      },
+      JSIExecutor::defaultTimeoutInvoker,
+      nullptr);
+  }
 };
 
 }
@@ -320,13 +337,7 @@ struct RCTInstanceCallback : public InstanceCallback {
       executorFactory = [cxxDelegate jsExecutorFactoryForBridge:self];
     }
     if (!executorFactory) {
-      executorFactory = std::make_shared<JSIExecutorFactory>(
-          makeJSCRuntime(),
-          [](const std::string &message, unsigned int logLevel) {
-              _RCTLogJavaScriptInternal(
-                  static_cast<RCTLogLevel>(logLevel),
-                  [NSString stringWithUTF8String:message.c_str()]);
-          }, nullptr);
+      executorFactory = std::make_shared<JSCExecutorFactory>();
     }
   } else {
     id<RCTJavaScriptExecutor> objcExecutor = [self moduleForClass:self.executorClass];
@@ -439,6 +450,36 @@ struct RCTInstanceCallback : public InstanceCallback {
   return _moduleDataByName[moduleName].instance;
 }
 
+- (id)moduleForName:(NSString *)moduleName lazilyLoadIfNecessary:(BOOL)lazilyLoad
+{
+  if (!lazilyLoad) {
+    return [self moduleForName:moduleName];
+  }
+
+  RCTModuleData *moduleData = _moduleDataByName[moduleName];
+  if (moduleData) {
+    if (![moduleData isKindOfClass:[RCTModuleData class]]) {
+      // There is rare race condition where the data stored in the dictionary
+      // may have been deallocated, which means the module instance is no longer
+      // usable.
+      return nil;
+    }
+    return moduleData.instance;
+  }
+
+  // Module may not be loaded yet, so attempt to force load it here.
+  const BOOL result = [self.delegate respondsToSelector:@selector(bridge:didNotFindModule:)] &&
+    [self.delegate bridge:self didNotFindModule:moduleName];
+  if (result) {
+    // Try again.
+    moduleData = _moduleDataByName[moduleName];
+  } else {
+    RCTLogError(@"Unable to find module for %@", moduleName);
+  }
+
+  return moduleData.instance;
+}
+
 - (BOOL)moduleIsInitialized:(Class)moduleClass
 {
   return _moduleDataByName[RCTBridgeModuleNameForClass(moduleClass)].hasInstance;
@@ -446,17 +487,7 @@ struct RCTInstanceCallback : public InstanceCallback {
 
 - (id)moduleForClass:(Class)moduleClass
 {
-  NSString *moduleName = RCTBridgeModuleNameForClass(moduleClass);
-  RCTModuleData *moduleData = _moduleDataByName[moduleName];
-  if (moduleData) {
-    return moduleData.instance;
-  }
-
-  // Module may not be loaded yet, so attempt to force load it here.
-  RCTAssert([moduleClass conformsToProtocol:@protocol(RCTBridgeModule)], @"Asking for a NativeModule that doesn't conform to RCTBridgeModule: %@", NSStringFromClass(moduleClass));
-  [self registerAdditionalModuleClasses:@[moduleClass]];
-
-  return _moduleDataByName[moduleName].instance;
+  return [self moduleForName:RCTBridgeModuleNameForClass(moduleClass) lazilyLoadIfNecessary:YES];
 }
 
 - (std::shared_ptr<ModuleRegistry>)_buildModuleRegistryUnlocked
@@ -533,6 +564,17 @@ struct RCTInstanceCallback : public InstanceCallback {
   _moduleRegistryCreated = YES;
 }
 
+- (void)updateModuleWithInstance:(id<RCTBridgeModule>)instance;
+{
+  NSString *const moduleName = RCTBridgeModuleNameForClass([instance class]);
+  if (moduleName) {
+    RCTModuleData *const moduleData = _moduleDataByName[moduleName];
+    if (moduleData) {
+      moduleData.instance = instance;
+    }
+  }
+}
+
 - (NSArray<RCTModuleData *> *)registerModulesForClasses:(NSArray<Class> *)moduleClasses
 {
   return [self _registerModulesForClasses:moduleClasses lazilyDiscovered:NO];
@@ -547,7 +589,7 @@ struct RCTInstanceCallback : public InstanceCallback {
   NSArray *moduleClassesCopy = [moduleClasses copy];
   NSMutableArray<RCTModuleData *> *moduleDataByID = [NSMutableArray arrayWithCapacity:moduleClassesCopy.count];
   for (Class moduleClass in moduleClassesCopy) {
-    if (RCTJSINativeModuleEnabled() && [moduleClass conformsToProtocol:@protocol(RCTJSINativeModule)]) {
+    if (RCTTurboModuleEnabled() && [moduleClass conformsToProtocol:@protocol(RCTTurboModule)]) {
       continue;
     }
     NSString *moduleName = RCTBridgeModuleNameForClass(moduleClass);
@@ -623,6 +665,16 @@ struct RCTInstanceCallback : public InstanceCallback {
       }
     }
 
+    if (RCTTurboModuleEnabled() && [module conformsToProtocol:@protocol(RCTTurboModule)]) {
+#if RCT_DEBUG
+      // TODO: don't ask for extra module for when TurboModule is enabled.
+      RCTLogError(@"NativeModule '%@' was marked as TurboModule, but provided as an extra NativeModule "
+                  "by the class '%@', ignoring.",
+                  moduleName, moduleClass);
+#endif
+      continue;
+    }
+
     // Instantiate moduleData container
     RCTModuleData *moduleData = [[RCTModuleData alloc] initWithModuleInstance:module bridge:self];
     _moduleDataByName[moduleName] = moduleData;
@@ -652,7 +704,7 @@ struct RCTInstanceCallback : public InstanceCallback {
     // we must use the names provided by the delegate method here.
     for (NSString *moduleName in moduleClasses) {
       Class moduleClass = moduleClasses[moduleName];
-      if (RCTJSINativeModuleEnabled() && [moduleClass conformsToProtocol:@protocol(RCTJSINativeModule)]) {
+      if (RCTTurboModuleEnabled() && [moduleClass conformsToProtocol:@protocol(RCTTurboModule)]) {
         continue;
       }
 

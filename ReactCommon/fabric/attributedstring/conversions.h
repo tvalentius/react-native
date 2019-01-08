@@ -381,8 +381,6 @@ inline folly::dynamic toDynamic(
   values("maximumNumberOfLines", paragraphAttributes.maximumNumberOfLines);
   values("ellipsizeMode", toString(paragraphAttributes.ellipsizeMode));
   values("adjustsFontSizeToFit", paragraphAttributes.adjustsFontSizeToFit);
-  values("minimumFontSize", paragraphAttributes.minimumFontSize);
-  values("maximumFontSize", paragraphAttributes.maximumFontSize);
   return values;
 }
 
@@ -440,8 +438,7 @@ inline folly::dynamic toDynamic(const TextAttributes &textAttributes) {
   }
   if (textAttributes.textDecorationLineType.has_value()) {
     _textAttributes(
-        "textDecorationLineType",
-        toString(*textAttributes.textDecorationLineType));
+        "textDecorationLine", toString(*textAttributes.textDecorationLineType));
   }
   if (textAttributes.textDecorationLineStyle.has_value()) {
     _textAttributes(
@@ -480,13 +477,15 @@ inline folly::dynamic toDynamic(const AttributedString &attributedString) {
   for (auto fragment : attributedString.getFragments()) {
     folly::dynamic dynamicFragment = folly::dynamic::object();
     dynamicFragment["string"] = fragment.string;
-    if (fragment.parentShadowNode) {
-      dynamicFragment["reactTag"] = fragment.parentShadowNode->getTag();
+    if (fragment.parentShadowView.componentHandle) {
+      dynamicFragment["reactTag"] = fragment.parentShadowView.tag;
     }
     dynamicFragment["textAttributes"] = toDynamic(fragment.textAttributes);
     fragments.push_back(dynamicFragment);
   }
   value("fragments", fragments);
+  value(
+      "hash", std::hash<facebook::react::AttributedString>{}(attributedString));
   value("string", attributedString.getString());
   return value;
 }

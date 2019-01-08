@@ -27,9 +27,13 @@ public:
     [scheduler.delegate schedulerDidFinishTransaction:mutations rootTag:rootTag];
   }
 
-  void schedulerDidRequestPreliminaryViewAllocation(SurfaceId surfaceId, ComponentName componentName) override {
+  void schedulerDidRequestPreliminaryViewAllocation(SurfaceId surfaceId, ComponentName componentName, bool isLayoutable, ComponentHandle componentHandle) override {
+    if (!isLayoutable) {
+      return;
+    }
+
     RCTScheduler *scheduler = (__bridge RCTScheduler *)scheduler_;
-    [scheduler.delegate schedulerDidRequestPreliminaryViewAllocationWithComponentName:RCTNSStringFromString(componentName, NSASCIIStringEncoding)];
+    [scheduler.delegate schedulerOptimisticallyCreateComponentViewWithComponentHandle:componentHandle];
   }
 
 private:

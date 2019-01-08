@@ -20,6 +20,7 @@ using namespace facebook::react;
 #include <react/components/text/RawTextComponentDescriptor.h>
 #include <react/components/text/TextComponentDescriptor.h>
 #include <react/components/view/ViewComponentDescriptor.h>
+#include <react/config/ReactNativeConfig.h>
 #include <react/uimanager/ComponentDescriptorRegistry.h>
 
 namespace facebook {
@@ -63,6 +64,29 @@ NativeModuleRegistry buildNativeModuleRegistry() {
   return nMR;
 }
 
+class MockReactNativeConfig : public ReactNativeConfig {
+ public:
+  MockReactNativeConfig() {}
+  bool getBool(const std::string &param) const override {
+    return mockSimpleTestValue_;
+  }
+
+  std::string getString(const std::string &param) const override {
+    return "";
+  }
+
+  int64_t getInt64(const std::string &param) const override {
+    return 0;
+  }
+
+  double getDouble(const std::string &param) const override {
+    return 0.0;
+  }
+};
+
+std::shared_ptr<const ReactNativeConfig> mockReactNativeConfig_ =
+    std::make_shared<const MockReactNativeConfig>();
+
 } // namespace react
 } // namespace facebook
 
@@ -85,8 +109,11 @@ TEST(UITemplateProcessorTest, testSimpleBytecode) {
       surfaceId,
       folly::dynamic::object(),
       *componentDescriptorRegistry,
-      nativeModuleRegistry);
+      nativeModuleRegistry,
+      mockReactNativeConfig_);
+#ifndef NDEBUG
   LOG(INFO) << std::endl << root1->getDebugDescription();
+#endif
   auto props1 = std::dynamic_pointer_cast<const ViewProps>(root1->getProps());
   ASSERT_NEAR(props1->opacity, 0.5, 0.001);
   ASSERT_STREQ(props1->testId.c_str(), "root");
@@ -120,8 +147,11 @@ TEST(UITemplateProcessorTest, testConditionalBytecode) {
       surfaceId,
       folly::dynamic::object(),
       *componentDescriptorRegistry,
-      nativeModuleRegistry);
+      nativeModuleRegistry,
+      mockReactNativeConfig_);
+#ifndef NDEBUG
   LOG(INFO) << std::endl << root1->getDebugDescription();
+#endif
   auto props1 = std::dynamic_pointer_cast<const ViewProps>(root1->getProps());
   ASSERT_STREQ(props1->testId.c_str(), "root");
   auto children1 = root1->getChildren();
@@ -137,7 +167,8 @@ TEST(UITemplateProcessorTest, testConditionalBytecode) {
       surfaceId,
       folly::dynamic::object(),
       *componentDescriptorRegistry,
-      nativeModuleRegistry);
+      nativeModuleRegistry,
+      mockReactNativeConfig_);
   auto child_props2 = std::dynamic_pointer_cast<const ViewProps>(
       root2->getChildren().at(0)->getProps());
   ASSERT_STREQ(child_props2->testId.c_str(), "cond_false");

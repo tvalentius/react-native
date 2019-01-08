@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 
+#include <react/config/ReactNativeConfig.h>
 #include <react/core/ComponentDescriptor.h>
 #include <react/core/LayoutConstraints.h>
 #include <react/uimanager/ComponentDescriptorRegistry.h>
@@ -15,6 +16,7 @@
 #include <react/uimanager/SchedulerDelegate.h>
 #include <react/uimanager/ShadowTree.h>
 #include <react/uimanager/ShadowTreeDelegate.h>
+#include <react/uimanager/ShadowTreeRegistry.h>
 #include <react/uimanager/UIManagerBinding.h>
 #include <react/uimanager/UIManagerDelegate.h>
 #include <react/uimanager/primitives.h>
@@ -75,7 +77,7 @@ class Scheduler final : public UIManagerDelegate, public ShadowTreeDelegate {
 #pragma mark - UIManagerDelegate
 
   void uiManagerDidFinishTransaction(
-      Tag rootTag,
+      SurfaceId surfaceId,
       const SharedShadowNodeUnsharedList &rootChildNodes) override;
   void uiManagerDidCreateShadowNode(
       const SharedShadowNode &shadowNode) override;
@@ -89,17 +91,10 @@ class Scheduler final : public UIManagerDelegate, public ShadowTreeDelegate {
  private:
   SchedulerDelegate *delegate_;
   SharedComponentDescriptorRegistry componentDescriptorRegistry_;
-  mutable std::mutex mutex_;
-  mutable std::unordered_map<SurfaceId, std::unique_ptr<ShadowTree>>
-      shadowTreeRegistry_; // Protected by `mutex_`.
-  SharedEventDispatcher eventDispatcher_;
-  SharedContextContainer contextContainer_;
+  ShadowTreeRegistry shadowTreeRegistry_;
   RuntimeExecutor runtimeExecutor_;
   std::shared_ptr<UIManagerBinding> uiManagerBinding_;
-
-  void uiManagerDidFinishTransactionWithoutLock(
-      Tag rootTag,
-      const SharedShadowNodeUnsharedList &rootChildNodes);
+  std::shared_ptr<const ReactNativeConfig> reactNativeConfig_;
 };
 
 } // namespace react
