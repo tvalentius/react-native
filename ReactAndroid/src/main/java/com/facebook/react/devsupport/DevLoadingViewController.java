@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -10,15 +10,14 @@ package com.facebook.react.devsupport;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
-import android.os.Build;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import androidx.annotation.Nullable;
 import com.facebook.common.logging.FLog;
 import com.facebook.react.R;
 import com.facebook.react.bridge.UiThreadUtil;
@@ -26,12 +25,8 @@ import com.facebook.react.common.ReactConstants;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Locale;
-import javax.annotation.Nullable;
 
-/**
- * Controller to display loading messages on top of the screen. All methods are thread safe.
- */
-@TargetApi(Build.VERSION_CODES.CUPCAKE)
+/** Controller to display loading messages on top of the screen. All methods are thread safe. */
 public class DevLoadingViewController {
   private static boolean sEnabled = true;
   private final ReactInstanceManagerDevHelper mReactInstanceManagerHelper;
@@ -42,7 +37,8 @@ public class DevLoadingViewController {
     sEnabled = enabled;
   }
 
-  public DevLoadingViewController(Context context, ReactInstanceManagerDevHelper reactInstanceManagerHelper) {
+  public DevLoadingViewController(
+      Context context, ReactInstanceManagerDevHelper reactInstanceManagerHelper) {
     mReactInstanceManagerHelper = reactInstanceManagerHelper;
   }
 
@@ -51,12 +47,13 @@ public class DevLoadingViewController {
       return;
     }
 
-    UiThreadUtil.runOnUiThread(new Runnable() {
-      @Override
-      public void run() {
-        showInternal(message);
-      }
-    });
+    UiThreadUtil.runOnUiThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            showInternal(message);
+          }
+        });
   }
 
   public void showForUrl(String url) {
@@ -74,8 +71,8 @@ public class DevLoadingViewController {
     }
 
     showMessage(
-        context.getString(R.string.catalyst_loading_from_url,
-        parsedURL.getHost() + ":" + parsedURL.getPort()));
+        context.getString(
+            R.string.catalyst_loading_from_url, parsedURL.getHost() + ":" + parsedURL.getPort()));
   }
 
   public void showForRemoteJSEnabled() {
@@ -84,28 +81,36 @@ public class DevLoadingViewController {
       return;
     }
 
-    showMessage(context.getString(R.string.catalyst_remotedbg_message));
+    showMessage(context.getString(R.string.catalyst_debug_connecting));
   }
 
-  public void updateProgress(final @Nullable String status, final @Nullable Integer done, final @Nullable Integer total) {
+  public void updateProgress(
+      final @Nullable String status, final @Nullable Integer done, final @Nullable Integer total) {
     if (!sEnabled) {
       return;
     }
 
-    UiThreadUtil.runOnUiThread(new Runnable() {
-      @Override
-      public void run() {
-        StringBuilder message = new StringBuilder();
-        message.append(status != null ? status : "Loading");
-        if (done != null && total != null && total > 0) {
-          message.append(String.format(Locale.getDefault(), " %.1f%% (%d/%d)", (float) done / total * 100, done, total));
-        }
-        message.append("\u2026"); // `...` character
-        if (mDevLoadingView != null) {
-          mDevLoadingView.setText(message);
-        }
-      }
-    });
+    UiThreadUtil.runOnUiThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            StringBuilder message = new StringBuilder();
+            message.append(status != null ? status : "Loading");
+            if (done != null && total != null && total > 0) {
+              message.append(
+                  String.format(
+                      Locale.getDefault(),
+                      " %.1f%% (%d/%d)",
+                      (float) done / total * 100,
+                      done,
+                      total));
+            }
+            message.append("\u2026"); // `...` character
+            if (mDevLoadingView != null) {
+              mDevLoadingView.setText(message);
+            }
+          }
+        });
   }
 
   public void hide() {
@@ -113,12 +118,13 @@ public class DevLoadingViewController {
       return;
     }
 
-    UiThreadUtil.runOnUiThread(new Runnable() {
-      @Override
-      public void run() {
-        hideInternal();
-      }
-    });
+    UiThreadUtil.runOnUiThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            hideInternal();
+          }
+        });
   }
 
   private void showInternal(String message) {
@@ -129,8 +135,9 @@ public class DevLoadingViewController {
 
     Activity currentActivity = mReactInstanceManagerHelper.getCurrentActivity();
     if (currentActivity == null) {
-      FLog.e(ReactConstants.TAG, "Unable to display loading message because react " +
-              "activity isn't available");
+      FLog.e(
+          ReactConstants.TAG,
+          "Unable to display loading message because react " + "activity isn't available");
       return;
     }
 
@@ -142,7 +149,7 @@ public class DevLoadingViewController {
     int topOffset = rectangle.top;
 
     LayoutInflater inflater =
-      (LayoutInflater) currentActivity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        (LayoutInflater) currentActivity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
     mDevLoadingView = (TextView) inflater.inflate(R.layout.dev_loading_view, null);
     mDevLoadingView.setText(message);
@@ -151,10 +158,7 @@ public class DevLoadingViewController {
     mDevLoadingPopup.setTouchable(false);
 
     mDevLoadingPopup.showAtLocation(
-      currentActivity.getWindow().getDecorView(),
-      Gravity.NO_GRAVITY,
-      0,
-      topOffset);
+        currentActivity.getWindow().getDecorView(), Gravity.NO_GRAVITY, 0, topOffset);
   }
 
   private void hideInternal() {

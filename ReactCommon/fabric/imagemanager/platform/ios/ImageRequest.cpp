@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -10,40 +10,51 @@
 namespace facebook {
 namespace react {
 
-class ImageRequest::ImageNoLongerNeededException : public std::logic_error {
- public:
-  ImageNoLongerNeededException()
-      : std::logic_error("Image no longer needed.") {}
-};
-
 ImageRequest::ImageRequest(
     const ImageSource &imageSource,
-    folly::Future<ImageResponse> &&responseFuture)
-    : imageSource_(imageSource),
-      responseFutureSplitter_(folly::splitFuture(std::move(responseFuture))) {}
+    std::shared_ptr<const ImageInstrumentation> instrumentation)
+    : imageSource_(imageSource), instrumentation_(instrumentation) {
+  coordinator_ = std::make_shared<ImageResponseObserverCoordinator>();
+}
 
 ImageRequest::ImageRequest(ImageRequest &&other) noexcept
     : imageSource_(std::move(other.imageSource_)),
-      responseFutureSplitter_(std::move(other.responseFutureSplitter_)) {
+      coordinator_(std::move(other.coordinator_)),
+      instrumentation_(std::move(other.instrumentation_)) {
   other.moved_ = true;
-};
+  other.coordinator_ = nullptr;
+  other.cancelRequest_ = nullptr;
+  other.instrumentation_ = nullptr;
+}
 
 ImageRequest::~ImageRequest() {
-  if (!moved_) {
-    auto future = responseFutureSplitter_.getFuture();
-    if (!future.isReady()) {
-      future.raise(ImageNoLongerNeededException());
-    }
+  if (cancelRequest_) {
+    cancelRequest_();
   }
 }
 
-folly::Future<ImageResponse> ImageRequest::getResponseFuture() const {
-  if (moved_) {
-    abort();
-  }
+void ImageRequest::setCancelationFunction(
+    std::function<void(void)> cancelationFunction) {
+  cancelRequest_ = cancelationFunction;
+}
 
-  std::lock_guard<std::mutex> lock(mutex_);
-  return responseFutureSplitter_.getFuture();
+const ImageResponseObserverCoordinator &ImageRequest::getObserverCoordinator()
+    const {
+  return *coordinator_;
+}
+
+const std::shared_ptr<const ImageResponseObserverCoordinator>
+    &ImageRequest::getSharedObserverCoordinator() const {
+  return coordinator_;
+}
+
+const std::shared_ptr<const ImageInstrumentation>
+    &ImageRequest::getSharedImageInstrumentation() const {
+  return instrumentation_;
+}
+
+const ImageInstrumentation &ImageRequest::getImageInstrumentation() const {
+  return *instrumentation_;
 }
 
 } // namespace react

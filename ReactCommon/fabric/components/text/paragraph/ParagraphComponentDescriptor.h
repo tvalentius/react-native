@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,10 +7,12 @@
 
 #pragma once
 
-#include <react/components/text/ParagraphShadowNode.h>
+#include "ParagraphShadowNode.h"
+
+#include <react/config/ReactNativeConfig.h>
 #include <react/core/ConcreteComponentDescriptor.h>
 #include <react/textlayoutmanager/TextLayoutManager.h>
-#include <react/uimanager/ContextContainer.h>
+#include <react/utils/ContextContainer.h>
 
 namespace facebook {
 namespace react {
@@ -21,15 +23,14 @@ namespace react {
 class ParagraphComponentDescriptor final
     : public ConcreteComponentDescriptor<ParagraphShadowNode> {
  public:
-  ParagraphComponentDescriptor(
-      SharedEventDispatcher eventDispatcher,
-      const SharedContextContainer &contextContainer)
-      : ConcreteComponentDescriptor<ParagraphShadowNode>(eventDispatcher) {
+  ParagraphComponentDescriptor(ComponentDescriptorParameters const &parameters)
+      : ConcreteComponentDescriptor<ParagraphShadowNode>(parameters) {
     // Every single `ParagraphShadowNode` will have a reference to
     // a shared `TextLayoutManager`.
-    textLayoutManager_ = std::make_shared<TextLayoutManager>(contextContainer);
+    textLayoutManager_ = std::make_shared<TextLayoutManager>(contextContainer_);
   }
 
+ protected:
   void adopt(UnsharedShadowNode shadowNode) const override {
     ConcreteComponentDescriptor::adopt(shadowNode);
 
@@ -40,6 +41,8 @@ class ParagraphComponentDescriptor final
     // `ParagraphShadowNode` uses `TextLayoutManager` to measure text content
     // and communicate text rendering metrics to mounting layer.
     paragraphShadowNode->setTextLayoutManager(textLayoutManager_);
+
+    paragraphShadowNode->dirtyLayout();
 
     // All `ParagraphShadowNode`s must have leaf Yoga nodes with properly
     // setup measure function.

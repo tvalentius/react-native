@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,16 +7,22 @@
 
 package com.facebook.react.bridge;
 
-/**
- * Interface for a mutable array. Used to pass arguments from Java to JS.
- */
+import androidx.annotation.Nullable;
+
+/** Interface for a mutable array. Used to pass arguments from Java to JS. */
 public interface WritableArray extends ReadableArray {
 
   void pushNull();
+
   void pushBoolean(boolean value);
+
   void pushDouble(double value);
+
   void pushInt(int value);
-  void pushString(String value);
-  void pushArray(WritableArray array);
-  void pushMap(WritableMap map);
+
+  void pushString(@Nullable String value);
+
+  void pushArray(@Nullable ReadableArray array);
+
+  void pushMap(@Nullable ReadableMap map);
 }

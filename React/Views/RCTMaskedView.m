@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -24,7 +24,7 @@
   }
 }
 
-- (void)displayLayer:(CALayer *)layer
+- (void)displayLayer:(__unused CALayer *)layer
 {
   // RCTView uses displayLayer to do border rendering.
   // We don't need to do that in RCTMaskedView, so we

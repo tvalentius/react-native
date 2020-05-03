@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -12,18 +12,14 @@ import android.os.Build;
 import android.text.TextPaint;
 import android.text.style.MetricAffectingSpan;
 
-import com.facebook.infer.annotation.Assertions;
-
 /**
- * A {@link MetricAffectingSpan} that allows to set the letter spacing
- * on the selected text span.
- * 
- * The letter spacing is specified in pixels, which are converted to
- * ems at paint time; this span must therefore be applied after any
- * spans affecting font size.
+ * A {@link MetricAffectingSpan} that allows to set the letter spacing on the selected text span.
+ *
+ * <p>The letter spacing is specified in pixels, which are converted to ems at paint time; this span
+ * must therefore be applied after any spans affecting font size.
  */
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-public class CustomLetterSpacingSpan extends MetricAffectingSpan {
+public class CustomLetterSpacingSpan extends MetricAffectingSpan implements ReactSpan {
 
   private final float mLetterSpacing;
 
@@ -42,10 +38,8 @@ public class CustomLetterSpacingSpan extends MetricAffectingSpan {
   }
 
   private void apply(TextPaint paint) {
-    // mLetterSpacing and paint.getTextSize() are both in pixels,
-    // yielding an accurate em value.
     if (!Float.isNaN(mLetterSpacing)) {
-      paint.setLetterSpacing(mLetterSpacing / paint.getTextSize());
+      paint.setLetterSpacing(mLetterSpacing);
     }
   }
 }

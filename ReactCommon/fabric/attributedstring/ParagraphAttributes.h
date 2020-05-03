@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -9,6 +9,7 @@
 
 #include <limits>
 
+#include <folly/Hash.h>
 #include <react/attributedstring/primitives.h>
 #include <react/debug/DebugStringConvertible.h>
 #include <react/graphics/Geometry.h>
@@ -41,6 +42,8 @@ class ParagraphAttributes : public DebugStringConvertible {
    */
   EllipsizeMode ellipsizeMode{};
 
+  TextBreakStrategy textBreakStrategy{};
+
   /*
    * Enables font size adjustment to fit constrained boundaries.
    */
@@ -53,6 +56,9 @@ class ParagraphAttributes : public DebugStringConvertible {
   Float minimumFontSize{std::numeric_limits<Float>::quiet_NaN()};
   Float maximumFontSize{std::numeric_limits<Float>::quiet_NaN()};
 
+  bool operator==(const ParagraphAttributes &) const;
+  bool operator!=(const ParagraphAttributes &) const;
+
 #pragma mark - DebugStringConvertible
 
 #if RN_DEBUG_STRING_CONVERTIBLE
@@ -62,3 +68,21 @@ class ParagraphAttributes : public DebugStringConvertible {
 
 } // namespace react
 } // namespace facebook
+
+namespace std {
+
+template <>
+struct hash<facebook::react::ParagraphAttributes> {
+  size_t operator()(
+      const facebook::react::ParagraphAttributes &attributes) const {
+    return folly::hash::hash_combine(
+        0,
+        attributes.maximumNumberOfLines,
+        attributes.ellipsizeMode,
+        attributes.textBreakStrategy,
+        attributes.adjustsFontSizeToFit,
+        attributes.minimumFontSize,
+        attributes.maximumFontSize);
+  }
+};
+} // namespace std

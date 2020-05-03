@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -9,8 +9,7 @@
 
 #import <React/RCTBridge.h>
 
-typedef NS_ENUM(NSInteger, RCTTextEventType)
-{
+typedef NS_ENUM(NSInteger, RCTTextEventType) {
   RCTTextEventTypeFocus,
   RCTTextEventTypeBlur,
   RCTTextEventTypeChange,
@@ -37,15 +36,23 @@ RCT_EXTERN NSString *RCTNormalizeInputEventName(NSString *eventName);
 
 @property (nonatomic, strong, readonly) NSNumber *viewTag;
 @property (nonatomic, copy, readonly) NSString *eventName;
-@property (nonatomic, assign, readonly) uint16_t coalescingKey;
 
 - (BOOL)canCoalesce;
-- (id<RCTEvent>)coalesceWithEvent:(id<RCTEvent>)newEvent;
 
-// used directly for doing a JS call
+/** used directly for doing a JS call */
 + (NSString *)moduleDotMethod;
-// must contain only JSON compatible values
+
+/** must contain only JSON compatible values */
 - (NSArray *)arguments;
+
+@optional
+
+/**
+ * Coalescing related methods must only be implemented if canCoalesce
+ * returns YES.
+ */
+@property (nonatomic, assign, readonly) uint16_t coalescingKey;
+- (id<RCTEvent>)coalesceWithEvent:(id<RCTEvent>)newEvent;
 
 @end
 
@@ -62,7 +69,6 @@ RCT_EXTERN NSString *RCTNormalizeInputEventName(NSString *eventName);
 
 @end
 
-
 /**
  * This class wraps the -[RCTBridge enqueueJSCall:args:] method, and
  * provides some convenience methods for generating event calls.
@@ -72,20 +78,12 @@ RCT_EXTERN NSString *RCTNormalizeInputEventName(NSString *eventName);
 /**
  * Deprecated, do not use.
  */
-- (void)sendAppEventWithName:(NSString *)name body:(id)body
-__deprecated_msg("Subclass RCTEventEmitter instead");
+- (void)sendAppEventWithName:(NSString *)name body:(id)body __deprecated_msg("Subclass RCTEventEmitter instead");
 
 /**
  * Deprecated, do not use.
  */
-- (void)sendDeviceEventWithName:(NSString *)name body:(id)body
-__deprecated_msg("Subclass RCTEventEmitter instead");
-
-/**
- * Deprecated, do not use.
- */
-- (void)sendInputEventWithName:(NSString *)name body:(NSDictionary *)body
-__deprecated_msg("Use RCTDirectEventBlock or RCTBubblingEventBlock instead");
+- (void)sendDeviceEventWithName:(NSString *)name body:(id)body __deprecated_msg("Subclass RCTEventEmitter instead");
 
 /**
  * Send a text input/focus event. For internal use only.

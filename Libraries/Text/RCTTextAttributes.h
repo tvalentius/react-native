@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -65,6 +65,11 @@ extern NSString *const RCTTextAttributesTagAttributeName;
  * Text attributes in NSAttributedString terms.
  */
 - (NSDictionary<NSAttributedStringKey, id> *)effectiveTextAttributes;
+
+/**
+ * Constructed paragraph style.
+ */
+- (NSParagraphStyle *_Nullable)effectiveParagraphStyle;
 
 /**
  * Constructed font.

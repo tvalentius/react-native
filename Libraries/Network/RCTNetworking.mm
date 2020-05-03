@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -8,20 +8,24 @@
 
 #import <mutex>
 
+#import <FBReactNativeSpec/FBReactNativeSpec.h>
 #import <React/RCTAssert.h>
 #import <React/RCTConvert.h>
 #import <React/RCTEventDispatcher.h>
 #import <React/RCTLog.h>
 #import <React/RCTNetworkTask.h>
 #import <React/RCTNetworking.h>
-#import <React/RCTURLRequestHandler.h>
 #import <React/RCTUtils.h>
 
-#import "RCTHTTPRequestHandler.h"
+#import <React/RCTHTTPRequestHandler.h>
+
+#import "RCTNetworkPlugins.h"
 
 typedef RCTURLRequestCancellationBlock (^RCTHTTPQueryResult)(NSError *error, NSDictionary<NSString *, id> *result);
 
-@interface RCTNetworking ()
+NSString *const RCTNetworkingPHUploadHackScheme = @"ph-upload";
+
+@interface RCTNetworking () <NativeNetworkingIOSSpec>
 
 - (RCTURLRequestCancellationBlock)processDataForHTTPQuery:(NSDictionary<NSString *, id> *)data
                                                  callback:(RCTHTTPQueryResult)callback;
@@ -76,6 +80,16 @@ static NSString *RCTGenerateFormBoundary()
   _callback = callback;
   _multipartBody = [NSMutableData new];
   _boundary = RCTGenerateFormBoundary();
+
+  for (NSUInteger i = 0; i < _parts.count; i++) {
+    NSString *uri = _parts[i][@"uri"];
+    if (uri && [[uri substringToIndex:@"ph:".length] caseInsensitiveCompare:@"ph:"] == NSOrderedSame) {
+      uri = [RCTNetworkingPHUploadHackScheme stringByAppendingString:[uri substringFromIndex:@"ph".length]];
+      NSMutableDictionary *mutableDict = [_parts[i] mutableCopy];
+      mutableDict[@"uri"] = uri;
+      _parts[i] = mutableDict;
+    }
+  }
 
   return [_networker processDataForHTTPQuery:_parts[0] callback:^(NSError *error, NSDictionary<NSString *, id> *result) {
     return [self handleResult:result error:error];
@@ -135,6 +149,7 @@ static NSString *RCTGenerateFormBoundary()
   NSMutableDictionary<NSNumber *, RCTNetworkTask *> *_tasksByRequestID;
   std::mutex _handlersLock;
   NSArray<id<RCTURLRequestHandler>> *_handlers;
+  NSArray<id<RCTURLRequestHandler>> * (^_handlersProvider)(void);
   NSMutableArray<id<RCTNetworkingRequestHandler>> *_requestHandlers;
   NSMutableArray<id<RCTNetworkingResponseHandler>> *_responseHandlers;
 }
@@ -142,6 +157,14 @@ static NSString *RCTGenerateFormBoundary()
 @synthesize methodQueue = _methodQueue;
 
 RCT_EXPORT_MODULE()
+
+- (instancetype)initWithHandlersProvider:(NSArray<id<RCTURLRequestHandler>> * (^)(void))getHandlers
+{
+  if (self = [super init]) {
+    _handlersProvider = getHandlers;
+  }
+  return self;
+}
 
 - (void)invalidate
 {
@@ -174,8 +197,14 @@ RCT_EXPORT_MODULE()
     std::lock_guard<std::mutex> lock(_handlersLock);
 
     if (!_handlers) {
+      if (_handlersProvider) {
+        _handlers = _handlersProvider();
+      } else {
+        _handlers = [self.bridge modulesConformingToProtocol:@protocol(RCTURLRequestHandler)];
+      }
+
       // Get handlers, sorted in reverse priority order (highest priority first)
-      _handlers = [[self.bridge modulesConformingToProtocol:@protocol(RCTURLRequestHandler)] sortedArrayUsingComparator:^NSComparisonResult(id<RCTURLRequestHandler> a, id<RCTURLRequestHandler> b) {
+      _handlers = [_handlers sortedArrayUsingComparator:^NSComparisonResult(id<RCTURLRequestHandler> a, id<RCTURLRequestHandler> b) {
         float priorityA = [a respondsToSelector:@selector(handlerPriority)] ? [a handlerPriority] : 0;
         float priorityB = [b respondsToSelector:@selector(handlerPriority)] ? [b handlerPriority] : 0;
         if (priorityA > priorityB) {
@@ -245,10 +274,13 @@ RCT_EXPORT_MODULE()
   NSURL *URL = [RCTConvert NSURL:query[@"url"]]; // this is marked as nullable in JS, but should not be null
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:URL];
   request.HTTPMethod = [RCTConvert NSString:RCTNilIfNull(query[@"method"])].uppercaseString ?: @"GET";
+  request.HTTPShouldHandleCookies = [RCTConvert BOOL:query[@"withCredentials"]];
 
-  // Load and set the cookie header.
-  NSArray<NSHTTPCookie *> *cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookiesForURL:URL];
-  request.allHTTPHeaderFields = [NSHTTPCookie requestHeaderFieldsWithCookies:cookies];
+  if (request.HTTPShouldHandleCookies == YES) {
+    // Load and set the cookie header.
+    NSArray<NSHTTPCookie *> *cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookiesForURL:URL];
+    request.allHTTPHeaderFields = [NSHTTPCookie requestHeaderFieldsWithCookies:cookies];
+  }
 
   // Set supplied headers.
   NSDictionary *headers = [RCTConvert NSDictionary:query[@"headers"]];
@@ -259,7 +291,6 @@ RCT_EXPORT_MODULE()
   }];
 
   request.timeoutInterval = [RCTConvert NSTimeInterval:query[@"timeout"]];
-  request.HTTPShouldHandleCookies = [RCTConvert BOOL:query[@"withCredentials"]];
   NSDictionary<NSString *, id> *data = [RCTConvert NSDictionary:RCTNilIfNull(query[@"data"])];
   NSString *trackingName = data[@"trackingName"];
   if (trackingName) {
@@ -636,15 +667,26 @@ RCT_EXPORT_MODULE()
 
 #pragma mark - JS API
 
-RCT_EXPORT_METHOD(sendRequest:(NSDictionary *)query
-                  responseSender:(RCTResponseSenderBlock)responseSender)
+RCT_EXPORT_METHOD(sendRequest:(JS::NativeNetworkingIOS::SpecSendRequestQuery &)query
+                  callback:(RCTResponseSenderBlock)responseSender)
 {
+  NSDictionary *queryDict = @{
+    @"method": query.method(),
+    @"url": query.url(),
+    @"data": query.data(),
+    @"headers": query.headers(),
+    @"responseType": query.responseType(),
+    @"incrementalUpdates": @(query.incrementalUpdates()),
+    @"timeout": @(query.timeout()),
+    @"withCredentials": @(query.withCredentials()),
+  };
+  
   // TODO: buildRequest returns a cancellation block, but there's currently
   // no way to invoke it, if, for example the request is cancelled while
   // loading a large file to build the request body
-  [self buildRequest:query completionBlock:^(NSURLRequest *request) {
-    NSString *responseType = [RCTConvert NSString:query[@"responseType"]];
-    BOOL incrementalUpdates = [RCTConvert BOOL:query[@"incrementalUpdates"]];
+  [self buildRequest:queryDict completionBlock:^(NSURLRequest *request) {
+    NSString *responseType = [RCTConvert NSString:queryDict[@"responseType"]];
+    BOOL incrementalUpdates = [RCTConvert BOOL:queryDict[@"incrementalUpdates"]];
     [self sendRequest:request
          responseType:responseType
    incrementalUpdates:incrementalUpdates
@@ -652,10 +694,10 @@ RCT_EXPORT_METHOD(sendRequest:(NSDictionary *)query
   }];
 }
 
-RCT_EXPORT_METHOD(abortRequest:(nonnull NSNumber *)requestID)
+RCT_EXPORT_METHOD(abortRequest:(double)requestID)
 {
-  [_tasksByRequestID[requestID] cancel];
-  [_tasksByRequestID removeObjectForKey:requestID];
+  [_tasksByRequestID[[NSNumber numberWithDouble:requestID]] cancel];
+  [_tasksByRequestID removeObjectForKey:[NSNumber numberWithDouble:requestID]];
 }
 
 RCT_EXPORT_METHOD(clearCookies:(RCTResponseSenderBlock)responseSender)
@@ -672,6 +714,11 @@ RCT_EXPORT_METHOD(clearCookies:(RCTResponseSenderBlock)responseSender)
   responseSender(@[@YES]);
 }
 
+- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:(const facebook::react::ObjCTurboModule::InitParams &)params
+{
+  return std::make_shared<facebook::react::NativeNetworkingIOSSpecJSI>(params);
+}
+
 @end
 
 @implementation RCTBridge (RCTNetworking)
@@ -682,3 +729,7 @@ RCT_EXPORT_METHOD(clearCookies:(RCTResponseSenderBlock)responseSender)
 }
 
 @end
+
+Class RCTNetworkingCls(void) {
+  return RCTNetworking.class;
+}

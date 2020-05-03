@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -30,3 +30,5 @@
                            moduleClass:(Class)moduleClass NS_DESIGNATED_INITIALIZER;
 
 @end
+
+RCT_EXTERN NSString *RCTParseMethodSignature(const char *input, NSArray<RCTMethodArgument *> **arguments);

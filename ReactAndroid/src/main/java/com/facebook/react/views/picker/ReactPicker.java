@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,27 +7,44 @@
 
 package com.facebook.react.views.picker;
 
-import javax.annotation.Nullable;
-
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Spinner;
-
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.AppCompatSpinner;
 import com.facebook.react.common.annotations.VisibleForTesting;
+import java.util.List;
 
-public class ReactPicker extends Spinner {
+public class ReactPicker extends AppCompatSpinner {
 
-  private int mMode = MODE_DIALOG;
-  private @Nullable Integer mPrimaryColor;
-  private boolean mSuppressNextEvent;
+  private int mMode = Spinner.MODE_DIALOG;
   private @Nullable OnSelectListener mOnSelectListener;
+  private @Nullable List<ReactPickerItem> mItems;
+  private @Nullable List<ReactPickerItem> mStagedItems;
   private @Nullable Integer mStagedSelection;
+  private @Nullable Integer mStagedPrimaryTextColor;
+  private @Nullable Integer mStagedBackgroundColor;
 
-  /**
-   * Listener interface for ReactPicker events.
-   */
+  private final OnItemSelectedListener mItemSelectedListener =
+      new OnItemSelectedListener() {
+        @Override
+        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+          if (mOnSelectListener != null) {
+            mOnSelectListener.onItemSelected(position);
+          }
+        }
+
+        @Override
+        public void onNothingSelected(AdapterView<?> parent) {
+          if (mOnSelectListener != null) {
+            mOnSelectListener.onItemSelected(-1);
+          }
+        }
+      };
+
+  /** Listener interface for ReactPicker events. */
   public interface OnSelectListener {
     void onItemSelected(int position);
   }
@@ -54,15 +71,16 @@ public class ReactPicker extends Spinner {
     mMode = mode;
   }
 
-  private final Runnable measureAndLayout = new Runnable() {
-    @Override
-    public void run() {
-      measure(
-          MeasureSpec.makeMeasureSpec(getWidth(), MeasureSpec.EXACTLY),
-          MeasureSpec.makeMeasureSpec(getHeight(), MeasureSpec.EXACTLY));
-      layout(getLeft(), getTop(), getRight(), getBottom());
-    }
-  };
+  private final Runnable measureAndLayout =
+      new Runnable() {
+        @Override
+        public void run() {
+          measure(
+              MeasureSpec.makeMeasureSpec(getWidth(), MeasureSpec.EXACTLY),
+              MeasureSpec.makeMeasureSpec(getHeight(), MeasureSpec.EXACTLY));
+          layout(getLeft(), getTop(), getRight(), getBottom());
+        }
+      };
 
   @Override
   public void requestLayout() {
@@ -75,72 +93,97 @@ public class ReactPicker extends Spinner {
     post(measureAndLayout);
   }
 
-  public void setOnSelectListener(@Nullable OnSelectListener onSelectListener) {
-    if (getOnItemSelectedListener() == null) {
-      // onItemSelected gets fired immediately after layout because checkSelectionChanged() in
-      // AdapterView updates the selection position from the default INVALID_POSITION. To match iOS
-      // behavior, we don't want the event emitter for onItemSelected to fire right after layout.
-      mSuppressNextEvent = true;
-      setOnItemSelectedListener(
-          new OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-              if (!mSuppressNextEvent && mOnSelectListener != null) {
-                mOnSelectListener.onItemSelected(position);
-              }
-              mSuppressNextEvent = false;
-            }
+  @Override
+  protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+    super.onLayout(changed, left, top, right, bottom);
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-              if (!mSuppressNextEvent && mOnSelectListener != null) {
-                mOnSelectListener.onItemSelected(-1);
-              }
-              mSuppressNextEvent = false;
-            }
-          });
-    }
+    // onItemSelected gets fired immediately after layout because checkSelectionChanged() in
+    // AdapterView updates the selection position from the default INVALID_POSITION.
+    // To match iOS behavior, which no onItemSelected during initial layout.
+    // We setup the listener after layout.
+    if (getOnItemSelectedListener() == null) setOnItemSelectedListener(mItemSelectedListener);
+  }
+
+  public void setOnSelectListener(@Nullable OnSelectListener onSelectListener) {
     mOnSelectListener = onSelectListener;
   }
 
-  @Nullable public OnSelectListener getOnSelectListener() {
+  @Nullable
+  public OnSelectListener getOnSelectListener() {
     return mOnSelectListener;
   }
 
+  /* package */ void setStagedItems(final @Nullable List<ReactPickerItem> items) {
+    mStagedItems = items;
+  }
+
   /**
-   * Will cache "selection" value locally and set it only once {@link #updateStagedSelection} is
-   * called
+   * Will cache "selection" value locally and set it only once {@link #commitStagedData} is called
    */
-  public void setStagedSelection(int selection) {
+  /* package */ void setStagedSelection(int selection) {
     mStagedSelection = selection;
   }
 
-  public void updateStagedSelection() {
-    if (mStagedSelection != null) {
-      setSelectionWithSuppressEvent(mStagedSelection);
-      mStagedSelection = null;
+  /** Will set the "selection" value immediately as opposed to {@link #setStagedSelection(int)} */
+  /* package */ void setImmediateSelection(int selection) {
+    if (selection != getSelectedItemPosition()) {
+      setOnItemSelectedListener(null);
+      setSelection(selection, false);
+      setOnItemSelectedListener(mItemSelectedListener);
     }
+  }
+
+  /* package */ void setStagedPrimaryTextColor(@Nullable Integer primaryColor) {
+    mStagedPrimaryTextColor = primaryColor;
+  }
+
+  /* package */ void setStagedBackgroundColor(@Nullable Integer backgroundColor) {
+    mStagedBackgroundColor = backgroundColor;
   }
 
   /**
-   * Set the selection while suppressing the follow-up {@link OnSelectListener#onItemSelected(int)}
-   * event. This is used so we don't get an event when changing the selection ourselves.
-   *
-   * @param position the position of the selected item
+   * Used to commit staged data into ReactPicker view. During this period, we will disable {@link
+   * OnSelectListener#onItemSelected(int)} temporarily, so we don't get an event when changing the
+   * items/selection ourselves.
    */
-  private void setSelectionWithSuppressEvent(int position) {
-    if (position != getSelectedItemPosition()) {
-      mSuppressNextEvent = true;
-      setSelection(position);
+  /* package */ void commitStagedData() {
+    setOnItemSelectedListener(null);
+
+    ReactPickerAdapter adapter = (ReactPickerAdapter) getAdapter();
+    final int origSelection = getSelectedItemPosition();
+    if (mStagedItems != null && mStagedItems != mItems) {
+      mItems = mStagedItems;
+      mStagedItems = null;
+      if (adapter == null) {
+        adapter = new ReactPickerAdapter(getContext(), mItems);
+        setAdapter(adapter);
+      } else {
+        adapter.clear();
+        adapter.addAll(mItems);
+        adapter.notifyDataSetChanged();
+      }
     }
-  }
 
-  public @Nullable Integer getPrimaryColor() {
-    return mPrimaryColor;
-  }
+    if (mStagedSelection != null && mStagedSelection != origSelection) {
+      setSelection(mStagedSelection, false);
+      mStagedSelection = null;
+    }
 
-  public void setPrimaryColor(@Nullable Integer primaryColor) {
-    mPrimaryColor = primaryColor;
+    if (mStagedPrimaryTextColor != null
+        && adapter != null
+        && mStagedPrimaryTextColor != adapter.getPrimaryTextColor()) {
+      adapter.setPrimaryTextColor(mStagedPrimaryTextColor);
+      mStagedPrimaryTextColor = null;
+    }
+
+    if (mStagedBackgroundColor != null
+        && adapter != null
+        && mStagedBackgroundColor != adapter.getBackgroundColor()) {
+      adapter.setBackgroundColor(mStagedBackgroundColor);
+      mStagedBackgroundColor = null;
+    }
+
+    setOnItemSelectedListener(mItemSelectedListener);
   }
 
   @VisibleForTesting

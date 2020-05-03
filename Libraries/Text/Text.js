@@ -10,20 +10,20 @@
 
 'use strict';
 
-const DeprecatedTextPropTypes = require('DeprecatedTextPropTypes');
-const React = require('React');
-const ReactNativeViewAttributes = require('ReactNativeViewAttributes');
-const TextAncestor = require('TextAncestor');
-const Touchable = require('Touchable');
-const UIManager = require('UIManager');
+const DeprecatedTextPropTypes = require('../DeprecatedPropTypes/DeprecatedTextPropTypes');
+const React = require('react');
+const ReactNativeViewAttributes = require('../Components/View/ReactNativeViewAttributes');
+const TextAncestor = require('./TextAncestor');
+const Touchable = require('../Components/Touchable/Touchable');
+const UIManager = require('../ReactNative/UIManager');
 
-const createReactNativeComponentClass = require('createReactNativeComponentClass');
+const createReactNativeComponentClass = require('../Renderer/shims/createReactNativeComponentClass');
 const nullthrows = require('nullthrows');
-const processColor = require('processColor');
+const processColor = require('../StyleSheet/processColor');
 
-import type {PressEvent} from 'CoreEventTypes';
-import type {NativeComponent} from 'ReactNative';
-import type {PressRetentionOffset, TextProps} from 'TextProps';
+import type {PressEvent} from '../Types/CoreEventTypes';
+import type {HostComponent} from '../Renderer/shims/ReactNativeTypes';
+import type {PressRetentionOffset, TextProps} from './TextProps';
 
 type ResponseHandlers = $ReadOnly<{|
   onStartShouldSetResponder: () => boolean,
@@ -34,10 +34,10 @@ type ResponseHandlers = $ReadOnly<{|
   onResponderTerminationRequest: () => boolean,
 |}>;
 
-type Props = $ReadOnly<{
+type Props = $ReadOnly<{|
   ...TextProps,
   forwardedRef: ?React.Ref<'RCTText' | 'RCTVirtualText'>,
-}>;
+|}>;
 
 type State = {|
   touchable: {|
@@ -66,10 +66,15 @@ const viewConfig = {
     minimumFontScale: true,
     textBreakStrategy: true,
     onTextLayout: true,
+    onInlineViewLayout: true,
+    dataDetectorType: true,
   },
   directEventTypes: {
     topTextLayout: {
       registrationName: 'onTextLayout',
+    },
+    topInlineViewLayout: {
+      registrationName: 'onInlineViewLayout',
     },
   },
   uiViewClassName: 'RCTText',
@@ -78,7 +83,7 @@ const viewConfig = {
 /**
  * A React component for displaying text.
  *
- * See https://facebook.github.io/react-native/docs/text.html
+ * See https://reactnative.dev/docs/text.html
  */
 class TouchableText extends React.Component<Props, State> {
   static defaultProps = {
@@ -286,7 +291,12 @@ TextToExport.displayName = 'Text';
  * and run Flow. */
 TextToExport.propTypes = DeprecatedTextPropTypes;
 
-/* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an error
- * found when Flow v0.89 was deployed. To see the error, delete this comment
- * and run Flow. */
-module.exports = (TextToExport: Class<NativeComponent<TextProps>>);
+type TextStatics = $ReadOnly<{|
+  propTypes: typeof DeprecatedTextPropTypes,
+|}>;
+
+module.exports = ((TextToExport: any): React.AbstractComponent<
+  TextProps,
+  React.ElementRef<HostComponent<TextProps>>,
+> &
+  TextStatics);

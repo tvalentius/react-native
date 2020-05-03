@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -38,7 +38,7 @@ inline void fromString(const std::string &string, AccessibilityTraits &result) {
     result = AccessibilityTraits::PlaysSound;
     return;
   }
-  if (string == "keyboardkey") {
+  if (string == "keyboardkey" || string == "key") {
     result = AccessibilityTraits::KeyboardKey;
     return;
   }
@@ -78,23 +78,30 @@ inline void fromString(const std::string &string, AccessibilityTraits &result) {
     result = AccessibilityTraits::Header;
     return;
   }
-  abort();
-}
-
-inline void fromDynamic(
-    const folly::dynamic &value,
-    AccessibilityTraits &result) {
-  if (value.isString()) {
-    fromString(value.asString(), result);
+  if (string == "imagebutton") {
+    result = AccessibilityTraits::Image | AccessibilityTraits::Button;
+    return;
+  }
+  if (string == "summary") {
+    result = AccessibilityTraits::SummaryElement;
     return;
   }
 
-  if (value.isArray()) {
+  result = AccessibilityTraits::None;
+}
+
+inline void fromRawValue(const RawValue &value, AccessibilityTraits &result) {
+  if (value.hasType<std::string>()) {
+    fromString((std::string)value, result);
+    return;
+  }
+
+  if (value.hasType<std::vector<std::string>>()) {
     result = {};
-    for (auto &item : value) {
-      auto string = item.asString();
+    auto items = (std::vector<std::string>)value;
+    for (auto &item : items) {
       AccessibilityTraits itemAccessibilityTraits;
-      fromString(value.asString(), itemAccessibilityTraits);
+      fromString(item, itemAccessibilityTraits);
       result = result | itemAccessibilityTraits;
     }
   }

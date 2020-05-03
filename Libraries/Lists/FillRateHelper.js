@@ -10,31 +10,30 @@
 
 'use strict';
 
-/* $FlowFixMe(>=0.54.0 site=react_native_oss) This comment suppresses an error
- * found when Flow v0.54 was deployed. To see the error delete this comment and
- * run Flow. */
 const performanceNow = require('fbjs/lib/performanceNow');
-/* $FlowFixMe(>=0.54.0 site=react_native_oss) This comment suppresses an error
- * found when Flow v0.54 was deployed. To see the error delete this comment and
- * run Flow. */
 const warning = require('fbjs/lib/warning');
 
 export type FillRateInfo = Info;
 
 class Info {
-  any_blank_count = 0;
-  any_blank_ms = 0;
-  any_blank_speed_sum = 0;
-  mostly_blank_count = 0;
-  mostly_blank_ms = 0;
-  pixels_blank = 0;
-  pixels_sampled = 0;
-  pixels_scrolled = 0;
-  total_time_spent = 0;
-  sample_count = 0;
+  any_blank_count: number = 0;
+  any_blank_ms: number = 0;
+  any_blank_speed_sum: number = 0;
+  mostly_blank_count: number = 0;
+  mostly_blank_ms: number = 0;
+  pixels_blank: number = 0;
+  pixels_sampled: number = 0;
+  pixels_scrolled: number = 0;
+  total_time_spent: number = 0;
+  sample_count: number = 0;
 }
 
-type FrameMetrics = {inLayout?: boolean, length: number, offset: number};
+type FrameMetrics = {
+  inLayout?: boolean,
+  length: number,
+  offset: number,
+  ...
+};
 
 const DEBUG = false;
 
@@ -58,7 +57,9 @@ class FillRateHelper {
   _mostlyBlankStartTime = (null: ?number);
   _samplesStartTime = (null: ?number);
 
-  static addListener(callback: FillRateInfo => void): {remove: () => void} {
+  static addListener(
+    callback: FillRateInfo => void,
+  ): {remove: () => void, ...} {
     warning(
       _sampleRate !== null,
       'Call `FillRateHelper.setSampleRate` before `addListener`.',
@@ -136,19 +137,22 @@ class FillRateHelper {
 
   computeBlankness(
     props: {
-      data: Array<any>,
-      getItemCount: (data: Array<any>) => number,
+      data: any,
+      getItemCount: (data: any) => number,
       initialNumToRender: number,
+      ...
     },
     state: {
       first: number,
       last: number,
+      ...
     },
     scrollMetrics: {
       dOffset: number,
       offset: number,
       velocity: number,
       visibleLength: number,
+      ...
     },
   ): number {
     if (

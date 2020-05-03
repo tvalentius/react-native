@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,14 +7,14 @@
 
 #include "Sealable.h"
 
-#include <stdexcept>
+#include <cassert>
 
 namespace facebook {
 namespace react {
 
 /*
  * Note:
- * We must explictly implement all *the rule of five* methods because:
+ * We must explicitly implement all *the rule of five* methods because:
  *   1. Using `std::atomic` behind `sealed_` implicitly deletes default
  *      constructors;
  *   2. We have to establish behaviour where any new cloned or moved instances
@@ -30,7 +30,9 @@ Sealable::Sealable() : sealed_(false) {}
 
 Sealable::Sealable(const Sealable &other) : sealed_(false){};
 
-Sealable::Sealable(Sealable &&other) noexcept : sealed_(false){};
+Sealable::Sealable(Sealable &&other) noexcept : sealed_(false) {
+  other.ensureUnsealed();
+};
 
 Sealable::~Sealable() noexcept {};
 
@@ -41,6 +43,7 @@ Sealable &Sealable::operator=(const Sealable &other) {
 
 Sealable &Sealable::operator=(Sealable &&other) noexcept {
   ensureUnsealed();
+  other.ensureUnsealed();
   return *this;
 }
 
@@ -53,9 +56,7 @@ bool Sealable::getSealed() const {
 }
 
 void Sealable::ensureUnsealed() const {
-  if (sealed_) {
-    throw std::runtime_error("Attempt to mutate a sealed object.");
-  }
+  assert(!sealed_ && "Attempt to mutate a sealed object.");
 }
 
 #endif

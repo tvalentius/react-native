@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,13 +7,13 @@
 
 package com.facebook.react.bridge;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.facebook.infer.annotation.Assertions;
 import com.facebook.jni.HybridData;
 import com.facebook.proguard.annotations.DoNotStrip;
-import com.facebook.react.config.ReactFeatureFlags;
 import java.util.ArrayList;
 import java.util.Arrays;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of a NativeArray that allows read-only access to its members. This will generally
@@ -29,20 +29,17 @@ public class ReadableNativeArray extends NativeArray implements ReadableArray {
     super(hybridData);
   }
 
-  //WriteOnce but not in the constructor fields
+  // WriteOnce but not in the constructor fields
   private @Nullable Object[] mLocalArray;
   private @Nullable ReadableType[] mLocalTypeArray;
 
   private static int jniPassCounter = 0;
-  public static void setUseNativeAccessor(boolean useNativeAccessor) {
-    ReactFeatureFlags.useArrayNativeAccessor = useNativeAccessor;
-  }
+
   public static int getJNIPassCounter() {
     return jniPassCounter;
   }
 
   private Object[] getLocalArray() {
-    // Fast, non blocking check for the common case
     if (mLocalArray != null) {
       return mLocalArray;
     }
@@ -55,10 +52,10 @@ public class ReadableNativeArray extends NativeArray implements ReadableArray {
     }
     return mLocalArray;
   }
+
   private native Object[] importArray();
 
   private ReadableType[] getLocalTypeArray() {
-    // Fast, non-blocking check for the common case
     if (mLocalTypeArray != null) {
       return mLocalTypeArray;
     }
@@ -72,106 +69,75 @@ public class ReadableNativeArray extends NativeArray implements ReadableArray {
     }
     return mLocalTypeArray;
   }
+
   private native Object[] importTypeArray();
 
   @Override
   public int size() {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return sizeNative();
-    }
     return getLocalArray().length;
   }
-  private native int sizeNative();
 
   @Override
   public boolean isNull(int index) {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return isNullNative(index);
-    }
     return getLocalArray()[index] == null;
   }
-  private native boolean isNullNative(int index);
 
   @Override
   public boolean getBoolean(int index) {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return getBooleanNative(index);
-    }
     return ((Boolean) getLocalArray()[index]).booleanValue();
   }
-  private native boolean getBooleanNative(int index);
 
   @Override
   public double getDouble(int index) {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return getDoubleNative(index);
-    }
     return ((Double) getLocalArray()[index]).doubleValue();
   }
-  private native double getDoubleNative(int index);
 
   @Override
   public int getInt(int index) {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return getIntNative(index);
-    }
     return ((Double) getLocalArray()[index]).intValue();
   }
-  private native int getIntNative(int index);
 
   @Override
-  public String getString(int index) {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return getStringNative(index);
-    }
+  public @Nullable String getString(int index) {
     return (String) getLocalArray()[index];
   }
-  private native String getStringNative(int index);
 
   @Override
-  public ReadableNativeArray getArray(int index) {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return getArrayNative(index);
-    }
+  public @Nullable ReadableNativeArray getArray(int index) {
     return (ReadableNativeArray) getLocalArray()[index];
   }
-  private native ReadableNativeArray getArrayNative(int index);
 
   @Override
-  public ReadableNativeMap getMap(int index) {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return getMapNative(index);
-    }
+  public @Nullable ReadableNativeMap getMap(int index) {
     return (ReadableNativeMap) getLocalArray()[index];
   }
-  private native ReadableNativeMap getMapNative(int index);
 
   @Override
-  public ReadableType getType(int index) {
-    if (ReactFeatureFlags.useArrayNativeAccessor) {
-      jniPassCounter++;
-      return getTypeNative(index);
-    }
+  public @NonNull ReadableType getType(int index) {
     return getLocalTypeArray()[index];
   }
 
-  private native ReadableType getTypeNative(int index);
-
   @Override
-  public Dynamic getDynamic(int index) {
+  public @NonNull Dynamic getDynamic(int index) {
     return DynamicFromArray.create(this, index);
   }
 
   @Override
-  public ArrayList<Object> toArrayList() {
+  public int hashCode() {
+    return getLocalArray().hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof ReadableNativeArray)) {
+      return false;
+    }
+    ReadableNativeArray other = (ReadableNativeArray) obj;
+    return Arrays.deepEquals(getLocalArray(), other.getLocalArray());
+  }
+
+  @Override
+  public @NonNull ArrayList<Object> toArrayList() {
     ArrayList<Object> arrayList = new ArrayList<>();
 
     for (int i = 0; i < this.size(); i++) {

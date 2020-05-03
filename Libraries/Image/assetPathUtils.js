@@ -12,26 +12,25 @@
 
 import type {PackagerAsset} from './AssetRegistry';
 
+const androidScaleSuffix = {
+  '0.75': 'ldpi',
+  '1': 'mdpi',
+  '1.5': 'hdpi',
+  '2': 'xhdpi',
+  '3': 'xxhdpi',
+  '4': 'xxxhdpi',
+};
+
 /**
  * FIXME: using number to represent discrete scale numbers is fragile in essence because of
  * floating point numbers imprecision.
  */
 function getAndroidAssetSuffix(scale: number): string {
-  switch (scale) {
-    case 0.75:
-      return 'ldpi';
-    case 1:
-      return 'mdpi';
-    case 1.5:
-      return 'hdpi';
-    case 2:
-      return 'xhdpi';
-    case 3:
-      return 'xxhdpi';
-    case 4:
-      return 'xxxhdpi';
+  if (scale.toString() in androidScaleSuffix) {
+    return androidScaleSuffix[scale.toString()];
   }
-  throw new Error('no such scale');
+
+  throw new Error('no such scale ' + scale.toString());
 }
 
 // See https://developer.android.com/guide/topics/resources/drawable-resource.html
@@ -45,22 +44,29 @@ const drawableFileTypes = new Set([
   'xml',
 ]);
 
-function getAndroidResourceFolderName(asset: PackagerAsset, scale: number) {
+function getAndroidResourceFolderName(
+  asset: PackagerAsset,
+  scale: number,
+): string | $TEMPORARY$string<'raw'> {
   if (!drawableFileTypes.has(asset.type)) {
     return 'raw';
   }
   var suffix = getAndroidAssetSuffix(scale);
   if (!suffix) {
     throw new Error(
-      "Don't know which android drawable suffix to use for asset: " +
-        JSON.stringify(asset),
+      "Don't know which android drawable suffix to use for scale: " +
+        scale +
+        '\nAsset: ' +
+        JSON.stringify(asset, null, '\t') +
+        '\nPossible scales are:' +
+        JSON.stringify(androidScaleSuffix, null, '\t'),
     );
   }
   const androidFolder = 'drawable-' + suffix;
   return androidFolder;
 }
 
-function getAndroidResourceIdentifier(asset: PackagerAsset) {
+function getAndroidResourceIdentifier(asset: PackagerAsset): string {
   var folderPath = getBasePath(asset);
   return (folderPath + '/' + asset.name)
     .toLowerCase()
@@ -69,7 +75,7 @@ function getAndroidResourceIdentifier(asset: PackagerAsset) {
     .replace(/^assets_/, ''); // Remove "assets_" prefix
 }
 
-function getBasePath(asset: PackagerAsset) {
+function getBasePath(asset: PackagerAsset): string {
   var basePath = asset.httpServerLocation;
   if (basePath[0] === '/') {
     basePath = basePath.substr(1);

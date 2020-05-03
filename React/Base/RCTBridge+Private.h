@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -11,11 +11,6 @@
 @protocol RCTJavaScriptExecutor;
 
 RCT_EXTERN NSArray<Class> *RCTGetModuleClasses(void);
-
-#if RCT_DEBUG
-RCT_EXTERN void RCTVerifyAllModulesExported(NSArray *extraModules);
-#endif
-
 RCT_EXTERN void RCTRegisterModule(Class);
 
 @interface RCTBridge ()
@@ -91,8 +86,7 @@ RCT_EXTERN void RCTRegisterModule(Class);
  * Used by RCTModuleData to register the module for frame updates after it is
  * lazily initialized.
  */
-- (void)registerModuleForFrameUpdates:(id<RCTBridgeModule>)module
-                       withModuleData:(RCTModuleData *)moduleData;
+- (void)registerModuleForFrameUpdates:(id<RCTBridgeModule>)module withModuleData:(RCTModuleData *)moduleData;
 
 /**
  * Dispatch work to a module's queue - this is also suports the fake RCTJSThread
@@ -125,9 +119,7 @@ RCT_EXTERN void RCTRegisterModule(Class);
 /**
  * Synchronously call a specific native module's method and return the result
  */
-- (id)callNativeModule:(NSUInteger)moduleID
-                method:(NSUInteger)methodID
-                params:(NSArray *)params;
+- (id)callNativeModule:(NSUInteger)moduleID method:(NSUInteger)methodID params:(NSArray *)params;
 
 /**
  * Hook exposed for RCTLog to send logs to JavaScript when not running in JSC
@@ -149,7 +141,8 @@ RCT_EXTERN void RCTRegisterModule(Class);
 
 @interface RCTCxxBridge : RCTBridge
 
-@property (nonatomic) void *runtime;
+// TODO(cjhopman): this seems unsafe unless we require that it is only called on the main js queue.
+@property (nonatomic, readonly) void *runtime;
 
 - (instancetype)initWithParentBridge:(RCTBridge *)bridge NS_DESIGNATED_INITIALIZER;
 

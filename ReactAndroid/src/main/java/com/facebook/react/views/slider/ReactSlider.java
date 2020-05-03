@@ -1,16 +1,17 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * <p>This source code is licensed under the MIT license found in the LICENSE file in the root
- * directory of this source tree.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
+
 package com.facebook.react.views.slider;
 
 import android.content.Context;
 import android.os.Build;
 import android.util.AttributeSet;
-import android.widget.SeekBar;
-import javax.annotation.Nullable;
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.AppCompatSeekBar;
 
 /**
  * Slider that behaves more like the iOS one, for consistency.
@@ -20,7 +21,7 @@ import javax.annotation.Nullable;
  *
  * <p>Note that the slider is _not_ a controlled component (setValue isn't called during dragging).
  */
-public class ReactSlider extends SeekBar {
+public class ReactSlider extends AppCompatSeekBar {
 
   /**
    * If step is 0 (unset) we default to this total number of steps. Don't use 100 which leads to

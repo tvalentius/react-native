@@ -8,19 +8,22 @@
  * @format
  */
 
-const Platform = require('Platform');
-const React = require('React');
-const View = require('View');
-const requireNativeComponent = require('requireNativeComponent');
+const Platform = require('../../Utilities/Platform');
+const React = require('react');
+const View = require('../View/View');
 
-import type {ViewProps} from 'ViewPropTypes';
+import type {HostComponent} from '../../Renderer/shims/ReactNativeTypes';
+import type {ViewProps} from '../View/ViewPropTypes';
 
 type Props = $ReadOnly<{|
   ...ViewProps,
   emulateUnlessSupported?: boolean,
 |}>;
 
-let exported;
+let exported: React.AbstractComponent<
+  Props,
+  React.ElementRef<HostComponent<mixed>>,
+>;
 
 /**
  * Renders nested content and automatically applies paddings reflect the portion
@@ -32,19 +35,27 @@ let exported;
  * sensor housing area on iPhone X).
  */
 if (Platform.OS === 'android') {
-  exported = class SafeAreaView extends React.Component<Props> {
-    render(): React.Node {
-      const {emulateUnlessSupported, ...props} = this.props;
-      return <View {...props} />;
-    }
-  };
+  exported = React.forwardRef<Props, React.ElementRef<HostComponent<mixed>>>(
+    function SafeAreaView(props, forwardedRef) {
+      const {emulateUnlessSupported, ...localProps} = props;
+      return <View {...localProps} ref={forwardedRef} />;
+    },
+  );
 } else {
-  const RCTSafeAreaView = requireNativeComponent('RCTSafeAreaView');
-  exported = class SafeAreaView extends React.Component<Props> {
-    render(): React.Node {
-      return <RCTSafeAreaView emulateUnlessSupported={true} {...this.props} />;
-    }
-  };
+  const RCTSafeAreaViewNativeComponent = require('./RCTSafeAreaViewNativeComponent')
+    .default;
+
+  exported = React.forwardRef<Props, React.ElementRef<HostComponent<mixed>>>(
+    function SafeAreaView(props, forwardedRef) {
+      return (
+        <RCTSafeAreaViewNativeComponent
+          emulateUnlessSupported={true}
+          {...props}
+          ref={forwardedRef}
+        />
+      );
+    },
+  );
 }
 
 module.exports = exported;

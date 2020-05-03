@@ -1,14 +1,14 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
 
-#include <CoreFoundation/CoreFoundation.h>
 #include <CoreFoundation/CFRunLoop.h>
-#include <react/uimanager/primitives.h>
-#include <react/events/EventBeat.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <ReactCommon/RuntimeExecutor.h>
+#include <react/core/EventBeat.h>
 
 namespace facebook {
 namespace react {
@@ -18,19 +18,19 @@ namespace react {
  * The beat is called on `RuntimeExecutor`'s thread induced by the main thread
  * event loop.
  */
-class RuntimeEventBeat:
-  public EventBeat {
-
-public:
-  RuntimeEventBeat(RuntimeExecutor runtimeExecutor);
+class RuntimeEventBeat : public EventBeat {
+ public:
+  RuntimeEventBeat(
+      EventBeat::SharedOwnerBox const &ownerBox,
+      RuntimeExecutor runtimeExecutor);
   ~RuntimeEventBeat();
 
   void induce() const override;
 
-private:
+ private:
   const RuntimeExecutor runtimeExecutor_;
   CFRunLoopObserverRef mainRunLoopObserver_;
-  mutable std::atomic<bool> isBusy_ {false};
+  mutable std::atomic<bool> isBusy_{false};
 };
 
 } // namespace react

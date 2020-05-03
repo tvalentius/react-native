@@ -7,6 +7,7 @@
  * @flow strict-local
  * @format
  */
+
 'use strict';
 
 /**
@@ -56,8 +57,6 @@ module.exports = [
   'StyleConstants',
   'AccessibilityEventTypes',
   'UIView',
-  '__takeSnapshot',
-  'takeSnapshot',
   'getViewManagerConfig',
   'blur',
   'focus',

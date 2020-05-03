@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -9,6 +9,6 @@
 
 #include <gtest/gtest.h>
 
-TEST(SwitchTest, testSomething) {
+TEST(ImageTest, testSomething) {
   // TODO
 }

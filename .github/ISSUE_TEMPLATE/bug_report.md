@@ -1,18 +1,30 @@
 ---
-name: 🐛 Bug Report
-about: Report a reproducible bug or regression in the core React Native library.
+name: "🐛 Bug Report"
+about: Report a reproducible bug or regression in React Native.
+title: ''
+labels: 'Needs: Triage :mag:'
+
 ---
 
-<!-- Requirements: please go through this checklist before opening a new issue -->
-  - [ ] Review the documentation: https://facebook.github.io/react-native
-  - [ ] Search for existing issues: https://github.com/facebook/react-native/issues
-  - [ ] Use the latest React Native release: https://github.com/facebook/react-native/releases
-
-## Environment
-Run `react-native info` in your terminal and paste its contents here.
+Please provide all the information requested. Issues that do not follow this format are likely to stall.
 
 ## Description
-Describe your issue in detail. Include screenshots if needed. If this is a regression, let us know.
+Please provide a clear and concise description of what the bug is. Include screenshots if needed.
+Please test using the latest React Native release to make sure your issue has not already been fixed: https://reactnative.dev/docs/upgrading.html
 
-## Reproducible Demo
-Let us know how to reproduce the issue. Include a code sample, share a project, or     share an app that reproduces the issue using https://snack.expo.io/. Please follow the guidelines for providing a MCVE: https://stackoverflow.com/help/mcve
+## React Native version:
+Run `react-native info` in your terminal and copy the results here.
+
+## Steps To Reproduce
+Provide a detailed list of steps that reproduce the issue.
+
+1.
+2.
+
+## Expected Results
+Describe what you expected to happen.
+
+## Snack, code example, screenshot, or link to a repository:
+Please provide a Snack (https://snack.expo.io/), a link to a repository on GitHub, or provide a minimal code example that reproduces the problem.
+You may provide a screenshot of the application if you think it is relevant to your bug report.
+Here are some tips for providing a minimal example: https://stackoverflow.com/help/mcve

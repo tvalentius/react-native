@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -16,6 +16,8 @@
 
 namespace facebook {
 namespace react {
+
+#ifdef ANDROID
 
 TEST(AttributedStringTest, testToDynamic) {
   auto attString = new AttributedString();
@@ -41,6 +43,8 @@ TEST(AttributedStringTest, testToDynamic) {
   assert(textAttribute["fontStyle"] == toString(*text->fontStyle));
   assert(textAttribute["fontWeight"] == toString(*text->fontWeight));
 }
+
+#endif
 
 } // namespace react
 } // namespace facebook

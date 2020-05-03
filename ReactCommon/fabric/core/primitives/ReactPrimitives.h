@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,11 +7,11 @@
 
 #pragma once
 
+#include <folly/dynamic.h>
+#include <react/core/RawProps.h>
+#include <react/core/RawValue.h>
 #include <memory>
 #include <string>
-#include <unordered_map>
-
-#include <folly/dynamic.h>
 
 namespace facebook {
 namespace react {
@@ -29,13 +29,6 @@ using InstanceHandle = struct InstanceHandleDummyStruct {
 using SurfaceId = int32_t;
 
 /*
- * `RawProps` represents untyped map with props comes from JavaScript side.
- */
-// TODO(T26954420): Use iterator as underlying type for RawProps.
-using RawProps = std::unordered_map<std::string, folly::dynamic>;
-using SharedRawProps = std::shared_ptr<const RawProps>;
-
-/*
  * Universal component handle which allows to refer to `ComponentDescriptor`s
  * in maps efficiently.
  * Practically, it's something that concrete ShadowNode and concrete
@@ -47,7 +40,7 @@ using ComponentHandle = int64_t;
  * String identifier for components used for addressing them from
  * JavaScript side.
  */
-using ComponentName = std::string;
+using ComponentName = char const *;
 
 } // namespace react
 } // namespace facebook

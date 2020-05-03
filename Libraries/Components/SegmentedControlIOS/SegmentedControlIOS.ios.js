@@ -5,26 +5,17 @@
  * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow
+ * @flow strict-local
  */
 
 'use strict';
 
-const React = require('React');
-const StyleSheet = require('StyleSheet');
-
-const requireNativeComponent = require('requireNativeComponent');
-
-import type {SyntheticEvent} from 'CoreEventTypes';
-import type {ViewProps} from 'ViewPropTypes';
-import type {NativeComponent} from 'ReactNative';
-
-type Event = SyntheticEvent<
-  $ReadOnly<{|
-    value: number,
-    selectedSegmentIndex: number,
-  |}>,
->;
+import * as React from 'react';
+import StyleSheet from '../../StyleSheet/StyleSheet';
+import type {OnChangeEvent} from './RCTSegmentedControlNativeComponent';
+import type {ViewProps} from '../View/ViewPropTypes';
+import RCTSegmentedControlNativeComponent from './RCTSegmentedControlNativeComponent';
+import type {SyntheticEvent} from 'react-native/Libraries/Types/CoreEventTypes';
 
 type SegmentedControlIOSProps = $ReadOnly<{|
   ...ViewProps,
@@ -37,18 +28,7 @@ type SegmentedControlIOSProps = $ReadOnly<{|
    */
   selectedIndex?: ?number,
   /**
-   * Callback that is called when the user taps a segment;
-   * passes the segment's value as an argument
-   */
-  onValueChange?: ?(value: number) => mixed,
-  /**
-   * Callback that is called when the user taps a segment;
-   * passes the event as an argument
-   */
-  onChange?: ?(event: Event) => mixed,
-  /**
    * If false the user won't be able to interact with the control.
-   * Default value is true.
    */
   enabled?: boolean,
   /**
@@ -60,16 +40,21 @@ type SegmentedControlIOSProps = $ReadOnly<{|
    * The `onValueChange` callback will still work as expected.
    */
   momentary?: ?boolean,
+  /**
+   * Callback that is called when the user taps a segment
+   */
+  onChange?: ?(event: SyntheticEvent<OnChangeEvent>) => void,
+  /**
+   * Callback that is called when the user taps a segment;
+   * passes the segment's value as an argument
+   */
+  onValueChange?: ?(value: number) => mixed,
 |}>;
 
 type Props = $ReadOnly<{|
   ...SegmentedControlIOSProps,
-  forwardedRef: ?React.Ref<typeof RCTSegmentedControl>,
+  forwardedRef: ?React.Ref<typeof RCTSegmentedControlNativeComponent>,
 |}>;
-
-type NativeSegmentedControlIOS = Class<
-  NativeComponent<SegmentedControlIOSProps>,
->;
 
 /**
  * Use `SegmentedControlIOS` to render a UISegmentedControl iOS.
@@ -92,29 +77,25 @@ type NativeSegmentedControlIOS = Class<
  * ````
  */
 
-const RCTSegmentedControl = ((requireNativeComponent(
-  'RCTSegmentedControl',
-): any): NativeSegmentedControlIOS);
-
 class SegmentedControlIOS extends React.Component<Props> {
   static defaultProps = {
     values: [],
     enabled: true,
   };
 
-  _onChange = (event: Event) => {
+  _onChange = (event: SyntheticEvent<OnChangeEvent>) => {
     this.props.onChange && this.props.onChange(event);
     this.props.onValueChange &&
       this.props.onValueChange(event.nativeEvent.value);
   };
 
   render() {
-    const {forwardedRef, ...props} = this.props;
+    const {forwardedRef, onValueChange, style, ...props} = this.props;
     return (
-      <RCTSegmentedControl
+      <RCTSegmentedControlNativeComponent
         {...props}
         ref={forwardedRef}
-        style={[styles.segmentedControl, this.props.style]}
+        style={[styles.segmentedControl, style]}
         onChange={this._onChange}
       />
     );
@@ -130,7 +111,7 @@ const styles = StyleSheet.create({
 const SegmentedControlIOSWithRef = React.forwardRef(
   (
     props: SegmentedControlIOSProps,
-    forwardedRef: ?React.Ref<typeof RCTSegmentedControl>,
+    forwardedRef: ?React.Ref<typeof RCTSegmentedControlNativeComponent>,
   ) => {
     return <SegmentedControlIOS {...props} forwardedRef={forwardedRef} />;
   },

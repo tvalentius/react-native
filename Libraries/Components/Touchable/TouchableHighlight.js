@@ -4,47 +4,39 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @flow
+ * @flow strict-local
  * @format
  */
+
 'use strict';
 
-const DeprecatedColorPropType = require('DeprecatedColorPropType');
-const DeprecatedViewPropTypes = require('DeprecatedViewPropTypes');
-const NativeMethodsMixin = require('NativeMethodsMixin');
-const Platform = require('Platform');
-const PropTypes = require('prop-types');
-const React = require('React');
-const ReactNativeViewAttributes = require('ReactNativeViewAttributes');
-const StyleSheet = require('StyleSheet');
-const Touchable = require('Touchable');
-const TouchableWithoutFeedback = require('TouchableWithoutFeedback');
-const View = require('View');
+import Pressability, {
+  type PressabilityConfig,
+} from '../../Pressability/Pressability';
+import {PressabilityDebugView} from '../../Pressability/PressabilityDebug';
+import StyleSheet, {type ViewStyleProp} from '../../StyleSheet/StyleSheet';
+import type {ColorValue} from '../../StyleSheet/StyleSheet';
+import TVTouchable from './TVTouchable';
+import typeof TouchableWithoutFeedback from './TouchableWithoutFeedback';
+import Platform from '../../Utilities/Platform';
+import View from '../../Components/View/View';
+import * as React from 'react';
 
-const createReactClass = require('create-react-class');
-const ensurePositiveDelayProps = require('ensurePositiveDelayProps');
-
-import type {PressEvent} from 'CoreEventTypes';
-import type {ViewStyleProp} from 'StyleSheet';
-import type {ColorValue} from 'StyleSheetTypes';
-import type {Props as TouchableWithoutFeedbackProps} from 'TouchableWithoutFeedback';
-import type {TVParallaxPropertiesType} from 'TVViewPropTypes';
-
-const DEFAULT_PROPS = {
-  activeOpacity: 0.85,
-  delayPressOut: 100,
-  underlayColor: 'black',
-};
-
-const PRESS_RETENTION_OFFSET = {top: 20, left: 20, right: 20, bottom: 30};
+type AndroidProps = $ReadOnly<{|
+  nextFocusDown?: ?number,
+  nextFocusForward?: ?number,
+  nextFocusLeft?: ?number,
+  nextFocusRight?: ?number,
+  nextFocusUp?: ?number,
+|}>;
 
 type IOSProps = $ReadOnly<{|
   hasTVPreferredFocus?: ?boolean,
-  tvParallaxProperties?: ?TVParallaxPropertiesType,
 |}>;
 
 type Props = $ReadOnly<{|
-  ...TouchableWithoutFeedbackProps,
+  ...React.ElementConfig<TouchableWithoutFeedback>,
+  ...AndroidProps,
   ...IOSProps,
 
   activeOpacity?: ?number,
@@ -53,6 +45,18 @@ type Props = $ReadOnly<{|
   onShowUnderlay?: ?() => void,
   onHideUnderlay?: ?() => void,
   testOnly_pressed?: ?boolean,
+
+  hostRef: React.Ref<typeof View>,
+|}>;
+
+type ExtraStyles = $ReadOnly<{|
+  child: ViewStyleProp,
+  underlay: ViewStyleProp,
+|}>;
+
+type State = $ReadOnly<{|
+  pressability: Pressability,
+  extraStyles: ?ExtraStyles,
 |}>;
 
 /**
@@ -151,305 +155,229 @@ type Props = $ReadOnly<{|
  * ```
  *
  */
+class TouchableHighlight extends React.Component<Props, State> {
+  _hideTimeout: ?TimeoutID;
+  _isMounted: boolean = false;
+  _tvTouchable: ?TVTouchable;
 
-const TouchableHighlight = ((createReactClass({
-  displayName: 'TouchableHighlight',
-  propTypes: {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    ...TouchableWithoutFeedback.propTypes,
-    /**
-     * Determines what the opacity of the wrapped view should be when touch is
-     * active.
-     */
-    activeOpacity: PropTypes.number,
-    /**
-     * The color of the underlay that will show through when the touch is
-     * active.
-     */
-    underlayColor: DeprecatedColorPropType,
-    /**
-     * Style to apply to the container/underlay. Most commonly used to make sure
-     * rounded corners match the wrapped component.
-     */
-    style: DeprecatedViewPropTypes.style,
-    /**
-     * Called immediately after the underlay is shown
-     */
-    onShowUnderlay: PropTypes.func,
-    /**
-     * Called immediately after the underlay is hidden
-     */
-    onHideUnderlay: PropTypes.func,
-    /**
-     * *(Apple TV only)* TV preferred focus (see documentation for the View component).
-     *
-     * @platform ios
-     */
-    hasTVPreferredFocus: PropTypes.bool,
-    /**
-     * Apple TV parallax effects
-     */
-    tvParallaxProperties: PropTypes.object,
-    /**
-     * Handy for snapshot tests.
-     */
-    testOnly_pressed: PropTypes.bool,
-  },
+  state: State = {
+    pressability: new Pressability(this._createPressabilityConfig()),
+    extraStyles:
+      this.props.testOnly_pressed === true ? this._createExtraStyles() : null,
+  };
 
-  mixins: [NativeMethodsMixin, Touchable.Mixin.withoutDefaultFocusAndBlur],
+  _createPressabilityConfig(): PressabilityConfig {
+    return {
+      cancelable: !this.props.rejectResponderTermination,
+      disabled: this.props.disabled,
+      hitSlop: this.props.hitSlop,
+      delayLongPress: this.props.delayLongPress,
+      delayPressIn: this.props.delayPressIn,
+      delayPressOut: this.props.delayPressOut,
+      pressRectOffset: this.props.pressRetentionOffset,
+      android_disableSound: this.props.touchSoundDisabled,
+      onBlur: event => {
+        if (Platform.isTV) {
+          this._hideUnderlay();
+        }
+        if (this.props.onBlur != null) {
+          this.props.onBlur(event);
+        }
+      },
+      onFocus: event => {
+        if (Platform.isTV) {
+          this._showUnderlay();
+        }
+        if (this.props.onFocus != null) {
+          this.props.onFocus(event);
+        }
+      },
+      onLongPress: event => {
+        if (this.props.onLongPress != null) {
+          this.props.onLongPress(event);
+        }
+      },
+      onPress: event => {
+        if (this._hideTimeout != null) {
+          clearTimeout(this._hideTimeout);
+        }
+        if (!Platform.isTV) {
+          this._showUnderlay();
+          this._hideTimeout = setTimeout(() => {
+            this._hideUnderlay();
+          }, this.props.delayPressOut ?? 0);
+        }
+        if (this.props.onPress != null) {
+          this.props.onPress(event);
+        }
+      },
+      onPressIn: event => {
+        if (this._hideTimeout != null) {
+          clearTimeout(this._hideTimeout);
+          this._hideTimeout = null;
+        }
+        this._showUnderlay();
+        if (this.props.onPressIn != null) {
+          this.props.onPressIn(event);
+        }
+      },
+      onPressOut: event => {
+        if (this._hideTimeout == null) {
+          this._hideUnderlay();
+        }
+        if (this.props.onPressOut != null) {
+          this.props.onPressOut(event);
+        }
+      },
+    };
+  }
 
-  getDefaultProps: () => DEFAULT_PROPS,
+  _createExtraStyles(): ExtraStyles {
+    return {
+      child: {opacity: this.props.activeOpacity ?? 0.85},
+      underlay: {
+        backgroundColor:
+          this.props.underlayColor === undefined
+            ? 'black'
+            : this.props.underlayColor,
+      },
+    };
+  }
 
-  getInitialState: function() {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    this._isMounted = false;
-    if (this.props.testOnly_pressed) {
-      return {
-        /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-         * error found when Flow v0.89 was deployed. To see the error, delete
-         * this comment and run Flow. */
-        ...this.touchableGetInitialState(),
-        extraChildStyle: {
-          opacity: this.props.activeOpacity,
-        },
-        extraUnderlayStyle: {
-          backgroundColor: this.props.underlayColor,
-        },
-      };
-    } else {
-      return {
-        /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-         * error found when Flow v0.89 was deployed. To see the error, delete
-         * this comment and run Flow. */
-        ...this.touchableGetInitialState(),
-        extraChildStyle: null,
-        extraUnderlayStyle: null,
-      };
-    }
-  },
-
-  componentDidMount: function() {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    this._isMounted = true;
-    ensurePositiveDelayProps(this.props);
-  },
-
-  componentWillUnmount: function() {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    this._isMounted = false;
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    clearTimeout(this._hideTimeout);
-  },
-
-  UNSAFE_componentWillReceiveProps: function(nextProps) {
-    ensurePositiveDelayProps(nextProps);
-  },
-
-  viewConfig: {
-    uiViewClassName: 'RCTView',
-    validAttributes: ReactNativeViewAttributes.RCTView,
-  },
-
-  /**
-   * `Touchable.Mixin` self callbacks. The mixin will invoke these if they are
-   * defined on your component.
-   */
-  touchableHandleActivePressIn: function(e: PressEvent) {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    clearTimeout(this._hideTimeout);
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    this._hideTimeout = null;
-    this._showUnderlay();
-    this.props.onPressIn && this.props.onPressIn(e);
-  },
-
-  touchableHandleActivePressOut: function(e: PressEvent) {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    if (!this._hideTimeout) {
-      this._hideUnderlay();
-    }
-    this.props.onPressOut && this.props.onPressOut(e);
-  },
-
-  touchableHandleFocus: function(e: Event) {
-    if (Platform.isTV) {
-      this._showUnderlay();
-    }
-    this.props.onFocus && this.props.onFocus(e);
-  },
-
-  touchableHandleBlur: function(e: Event) {
-    if (Platform.isTV) {
-      this._hideUnderlay();
-    }
-    this.props.onBlur && this.props.onBlur(e);
-  },
-
-  touchableHandlePress: function(e: PressEvent) {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    clearTimeout(this._hideTimeout);
-    if (!Platform.isTV) {
-      this._showUnderlay();
-      /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-       * error found when Flow v0.89 was deployed. To see the error, delete
-       * this comment and run Flow. */
-      this._hideTimeout = setTimeout(
-        this._hideUnderlay,
-        this.props.delayPressOut,
-      );
-    }
-    this.props.onPress && this.props.onPress(e);
-  },
-
-  touchableHandleLongPress: function(e: PressEvent) {
-    this.props.onLongPress && this.props.onLongPress(e);
-  },
-
-  touchableGetPressRectOffset: function() {
-    return this.props.pressRetentionOffset || PRESS_RETENTION_OFFSET;
-  },
-
-  touchableGetHitSlop: function() {
-    return this.props.hitSlop;
-  },
-
-  touchableGetHighlightDelayMS: function() {
-    return this.props.delayPressIn;
-  },
-
-  touchableGetLongPressDelayMS: function() {
-    return this.props.delayLongPress;
-  },
-
-  touchableGetPressOutDelayMS: function() {
-    return this.props.delayPressOut;
-  },
-
-  _showUnderlay: function() {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
+  _showUnderlay(): void {
     if (!this._isMounted || !this._hasPressHandler()) {
       return;
     }
-    this.setState({
-      extraChildStyle: {
-        opacity: this.props.activeOpacity,
-      },
-      extraUnderlayStyle: {
-        backgroundColor: this.props.underlayColor,
-      },
-    });
-    this.props.onShowUnderlay && this.props.onShowUnderlay();
-  },
+    this.setState({extraStyles: this._createExtraStyles()});
+    if (this.props.onShowUnderlay != null) {
+      this.props.onShowUnderlay();
+    }
+  }
 
-  _hideUnderlay: function() {
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    clearTimeout(this._hideTimeout);
-    /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-     * error found when Flow v0.89 was deployed. To see the error, delete this
-     * comment and run Flow. */
-    this._hideTimeout = null;
-    if (this.props.testOnly_pressed) {
+  _hideUnderlay(): void {
+    if (this._hideTimeout != null) {
+      clearTimeout(this._hideTimeout);
+      this._hideTimeout = null;
+    }
+    if (this.props.testOnly_pressed === true) {
       return;
     }
     if (this._hasPressHandler()) {
-      this.setState({
-        extraChildStyle: null,
-        extraUnderlayStyle: null,
-      });
-      this.props.onHideUnderlay && this.props.onHideUnderlay();
+      this.setState({extraStyles: null});
+      if (this.props.onHideUnderlay != null) {
+        this.props.onHideUnderlay();
+      }
     }
-  },
+  }
 
-  _hasPressHandler: function() {
-    return !!(
-      this.props.onPress ||
-      this.props.onPressIn ||
-      this.props.onPressOut ||
-      this.props.onLongPress
+  _hasPressHandler(): boolean {
+    return (
+      this.props.onPress != null ||
+      this.props.onPressIn != null ||
+      this.props.onPressOut != null ||
+      this.props.onLongPress != null
     );
-  },
+  }
 
-  render: function() {
+  render(): React.Node {
     const child = React.Children.only(this.props.children);
+
+    // BACKWARD-COMPATIBILITY: Focus and blur events were never supported before
+    // adopting `Pressability`, so preserve that behavior.
+    const {
+      onBlur,
+      onFocus,
+      ...eventHandlersWithoutBlurAndFocus
+    } = this.state.pressability.getEventHandlers();
+
     return (
       <View
         accessible={this.props.accessible !== false}
         accessibilityLabel={this.props.accessibilityLabel}
         accessibilityHint={this.props.accessibilityHint}
         accessibilityRole={this.props.accessibilityRole}
-        accessibilityStates={this.props.accessibilityStates}
+        accessibilityState={this.props.accessibilityState}
+        accessibilityValue={this.props.accessibilityValue}
+        accessibilityActions={this.props.accessibilityActions}
+        onAccessibilityAction={this.props.onAccessibilityAction}
+        importantForAccessibility={this.props.importantForAccessibility}
+        accessibilityLiveRegion={this.props.accessibilityLiveRegion}
+        accessibilityViewIsModal={this.props.accessibilityViewIsModal}
+        accessibilityElementsHidden={this.props.accessibilityElementsHidden}
         style={StyleSheet.compose(
           this.props.style,
-          this.state.extraUnderlayStyle,
+          this.state.extraStyles?.underlay,
         )}
         onLayout={this.props.onLayout}
         hitSlop={this.props.hitSlop}
-        isTVSelectable={true}
-        tvParallaxProperties={this.props.tvParallaxProperties}
         hasTVPreferredFocus={this.props.hasTVPreferredFocus}
-        /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-         * error found when Flow v0.89 was deployed. To see the error, delete
-         * this comment and run Flow. */
-        onStartShouldSetResponder={this.touchableHandleStartShouldSetResponder}
-        onResponderTerminationRequest={
-          /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses
-           * an error found when Flow v0.89 was deployed. To see the error,
-           * delete this comment and run Flow. */
-          this.touchableHandleResponderTerminationRequest
+        nextFocusDown={this.props.nextFocusDown}
+        nextFocusForward={this.props.nextFocusForward}
+        nextFocusLeft={this.props.nextFocusLeft}
+        nextFocusRight={this.props.nextFocusRight}
+        nextFocusUp={this.props.nextFocusUp}
+        focusable={
+          this.props.focusable !== false && this.props.onPress !== undefined
         }
-        /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-         * error found when Flow v0.89 was deployed. To see the error, delete
-         * this comment and run Flow. */
-        onResponderGrant={this.touchableHandleResponderGrant}
-        /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-         * error found when Flow v0.89 was deployed. To see the error, delete
-         * this comment and run Flow. */
-        onResponderMove={this.touchableHandleResponderMove}
-        /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-         * error found when Flow v0.89 was deployed. To see the error, delete
-         * this comment and run Flow. */
-        onResponderRelease={this.touchableHandleResponderRelease}
-        /* $FlowFixMe(>=0.89.0 site=react_native_fb) This comment suppresses an
-         * error found when Flow v0.89 was deployed. To see the error, delete
-         * this comment and run Flow. */
-        onResponderTerminate={this.touchableHandleResponderTerminate}
         nativeID={this.props.nativeID}
-        testID={this.props.testID}>
+        testID={this.props.testID}
+        ref={this.props.hostRef}
+        {...eventHandlersWithoutBlurAndFocus}>
         {React.cloneElement(child, {
           style: StyleSheet.compose(
             child.props.style,
-            this.state.extraChildStyle,
+            this.state.extraStyles?.child,
           ),
         })}
-        {Touchable.renderDebugView({
-          color: 'green',
-          hitSlop: this.props.hitSlop,
-        })}
+        {__DEV__ ? (
+          <PressabilityDebugView color="green" hitSlop={this.props.hitSlop} />
+        ) : null}
       </View>
     );
-  },
-}): any): React.ComponentType<Props>);
+  }
 
-module.exports = TouchableHighlight;
+  componentDidMount(): void {
+    this._isMounted = true;
+    if (Platform.isTV) {
+      this._tvTouchable = new TVTouchable(this, {
+        getDisabled: () => this.props.disabled === true,
+        onBlur: event => {
+          if (this.props.onBlur != null) {
+            this.props.onBlur(event);
+          }
+        },
+        onFocus: event => {
+          if (this.props.onFocus != null) {
+            this.props.onFocus(event);
+          }
+        },
+        onPress: event => {
+          if (this.props.onPress != null) {
+            this.props.onPress(event);
+          }
+        },
+      });
+    }
+  }
+
+  componentDidUpdate(prevProps: Props, prevState: State) {
+    this.state.pressability.configure(this._createPressabilityConfig());
+  }
+
+  componentWillUnmount(): void {
+    this._isMounted = false;
+    if (this._hideTimeout != null) {
+      clearTimeout(this._hideTimeout);
+    }
+    if (Platform.isTV) {
+      if (this._tvTouchable != null) {
+        this._tvTouchable.destroy();
+      }
+    }
+    this.state.pressability.reset();
+  }
+}
+
+module.exports = (React.forwardRef((props, hostRef) => (
+  <TouchableHighlight {...props} hostRef={hostRef} />
+)): React.ComponentType<$ReadOnly<$Diff<Props, {|hostRef: mixed|}>>>);

@@ -1,13 +1,14 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the MIT license found in the LICENSE
- * file in the root directory of this source tree.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
+
 #pragma once
 
 #include "YGValue.h"
-
+#include "YGMacros.h"
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -39,10 +40,10 @@ namespace detail {
 //            0x40000000         0x7f7fffff
 // - Zero is supported, negative zero is not
 // - values outside of the representable range are clamped
-class CompactValue {
+class YOGA_EXPORT CompactValue {
   friend constexpr bool operator==(CompactValue, CompactValue) noexcept;
 
- public:
+public:
   static constexpr auto LOWER_BOUND = 1.08420217e-19f;
   static constexpr auto UPPER_BOUND_POINT = 36893485948395847680.0f;
   static constexpr auto UPPER_BOUND_PERCENT = 18446742974197923840.0f;
@@ -70,7 +71,8 @@ class CompactValue {
 
   template <YGUnit Unit>
   static CompactValue ofMaybe(float value) noexcept {
-    return std::isnan(value) ? ofUndefined() : of<Unit>(value);
+    return std::isnan(value) || std::isinf(value) ? ofUndefined()
+                                                  : of<Unit>(value);
   }
 
   static constexpr CompactValue ofZero() noexcept {
@@ -133,11 +135,9 @@ class CompactValue {
         payload_.repr != ZERO_BITS_PERCENT && std::isnan(payload_.value));
   }
 
-  bool isAuto() const noexcept {
-    return payload_.repr == AUTO_BITS;
-  }
+  bool isAuto() const noexcept { return payload_.repr == AUTO_BITS; }
 
- private:
+private:
   union Payload {
     float value;
     uint32_t repr;
@@ -149,8 +149,8 @@ class CompactValue {
   static constexpr uint32_t BIAS = 0x20000000;
   static constexpr uint32_t PERCENT_BIT = 0x40000000;
 
-  // these are signaling NaNs with specific bit pattern as payload
-  // they will be silenced whenever going through an FPU operation on ARM + x86
+  // these are signaling NaNs with specific bit pattern as payload they will be
+  // silenced whenever going through an FPU operation on ARM + x86
   static constexpr uint32_t AUTO_BITS = 0x7faaaaaa;
   static constexpr uint32_t ZERO_BITS_POINT = 0x7f8f0f0f;
   static constexpr uint32_t ZERO_BITS_PERCENT = 0x7f80f0f0;
@@ -159,9 +159,7 @@ class CompactValue {
 
   Payload payload_;
 
-  VISIBLE_FOR_TESTING uint32_t repr() {
-    return payload_.repr;
-  }
+  VISIBLE_FOR_TESTING uint32_t repr() { return payload_.repr; }
 };
 
 template <>

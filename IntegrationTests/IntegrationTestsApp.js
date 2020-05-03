@@ -10,6 +10,7 @@
 
 'use strict';
 
+require('react-native/Libraries/Core/InitializeCore');
 const React = require('react');
 const ReactNative = require('react-native');
 const {
@@ -32,10 +33,10 @@ const TESTS = [
   require('./ImageCachePolicyTest'),
   require('./ImageSnapshotTest'),
   require('./PromiseTest'),
-  require('./WebViewTest'),
   require('./SyncMethodTest'),
   require('./WebSocketTest'),
   require('./AccessibilityManagerTest'),
+  require('./GlobalEvalWithSourceUrlTest'),
 ];
 
 TESTS.forEach(
@@ -46,11 +47,11 @@ TESTS.forEach(
 );
 
 // Modules required for integration tests
-require('LoggingTestModule');
+require('./LoggingTestModule');
 
 type Test = any;
 
-class IntegrationTestsApp extends React.Component<{}, $FlowFixMeState> {
+class IntegrationTestsApp extends React.Component<{...}, $FlowFixMeState> {
   state = {
     test: (null: ?Test),
   };
@@ -60,8 +61,8 @@ class IntegrationTestsApp extends React.Component<{}, $FlowFixMeState> {
       return (
         <ScrollView>
           {/* $FlowFixMe(>=0.53.0 site=react_native_fb,react_native_oss) This
-            * comment suppresses an error when upgrading Flow's support for
-            * React. To see the error delete this comment and run Flow. */}
+           * comment suppresses an error when upgrading Flow's support for
+           * React. To see the error delete this comment and run Flow. */}
           <this.state.test />
         </ScrollView>
       );
@@ -78,6 +79,9 @@ class IntegrationTestsApp extends React.Component<{}, $FlowFixMeState> {
           {TESTS.map(test => [
             <TouchableOpacity
               onPress={() => this.setState({test})}
+              /* $FlowFixMe(>=0.115.0 site=react_native_fb) This comment
+               * suppresses an error found when Flow v0.115 was deployed. To
+               * see the error, delete this comment and run Flow. */
               style={styles.row}>
               <Text style={styles.testName}>{test.displayName}</Text>
             </TouchableOpacity>,

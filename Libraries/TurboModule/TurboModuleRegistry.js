@@ -10,26 +10,36 @@
 
 'use strict';
 
-import type {TurboModule} from 'RCTExport';
+const NativeModules = require('../BatchedBridge/NativeModules');
+import type {TurboModule} from './RCTExport';
 import invariant from 'invariant';
-import {NativeModules} from 'react-native';
 
-// TODO
-function get<T: TurboModule>(name: string): ?T {
-  // Backward compatibility layer during migration.
-  if (NativeModules[name] != null) {
-    return ((NativeModules[name]: any): T);
+const turboModuleProxy = global.__turboModuleProxy;
+
+export function get<T: TurboModule>(name: string): ?T {
+  // Bridgeless mode requires TurboModules
+  if (!global.RN$Bridgeless) {
+    // Backward compatibility layer during migration.
+    const legacyModule = NativeModules[name];
+    if (legacyModule != null) {
+      return ((legacyModule: any): T);
+    }
   }
 
-  const module: ?T = global.__turboModuleProxy(name);
-  return module;
+  if (turboModuleProxy != null) {
+    const module: ?T = turboModuleProxy(name);
+    return module;
+  }
+
+  return null;
 }
 
-function getEnforcing<T: TurboModule>(name: string): T {
+export function getEnforcing<T: TurboModule>(name: string): T {
   const module = get(name);
-  invariant(module != null, `${name} is not available in this app.`);
+  invariant(
+    module != null,
+    `TurboModuleRegistry.getEnforcing(...): '${name}' could not be found. ` +
+      'Verify that a module by this name is registered in the native binary.',
+  );
   return module;
 }
-
-export {get};
-export {getEnforcing};
